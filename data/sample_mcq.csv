@@ -1,0 +1,21 @@
+id,question,option_a,option_b,option_c,option_d,answer
+q1,What is the capital of France?,Paris,Lyon,Marseille,Toulouse,A
+q2,Which planet is known as the Red Planet?,Earth,Saturn,Mars,Jupiter,C
+q3,What does H2O commonly refer to?,Hydrogen,Oxygen,Water,Helium,C
+q4,Which language is primarily spoken in Brazil?,Spanish,Portuguese,French,English,B
+q5,What is 2 + 2?,3,4,5,6,B
+q6,Who wrote Romeo and Juliet?,Charles Dickens,William Shakespeare,Mark Twain,Jane Austen,B
+q7,What is the largest mammal?,Blue whale,Elephant,Giraffe,Hippopotamus,A
+q8,In which year did World War II end?,1944,1945,1946,1947,B
+q9,What is the chemical symbol for gold?,Go,Gd,Au,Ag,C
+q10,Which country has the most natural lakes?,Canada,Russia,Finland,Sweden,A
+q11,What is the smallest prime number?,0,1,2,3,C
+q12,Who painted the Mona Lisa?,Vincent van Gogh,Pablo Picasso,Leonardo da Vinci,Michelangelo,C
+q13,What is the currency of Japan?,Yuan,Won,Yen,Rupee,C
+q14,Which organ produces insulin?,Liver,Pancreas,Kidney,Heart,B
+q15,What is the speed of light in vacuum?,299792458 m/s,300000000 m/s,299000000 m/s,298000000 m/s,A
+q16,Which gas makes up most of Earth's atmosphere?,Oxygen,Carbon dioxide,Nitrogen,Argon,C
+q17,Who was the first person to walk on the moon?,Buzz Aldrin,Neil Armstrong,John Glenn,Alan Shepard,B
+q18,What is the largest planet in our solar system?,Earth,Mars,Jupiter,Saturn,C
+q19,In what year was the Internet invented?,1969,1983,1989,1991,A
+q20,What is the hardest natural substance?,Diamond,Quartz,Granite,Steel,A
