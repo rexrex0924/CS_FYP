@@ -6,7 +6,6 @@ Evaluates positional bias in multiple choice questions using local LLM models vi
 import argparse
 import csv
 import json
-import random
 import re
 import time
 import os
@@ -58,15 +57,29 @@ def load_mcq_csv(path: str, max_questions: int = None) -> List[MCQ]:
         if ans not in {"A", "B", "C", "D"}:
             print(f"Skipping question {row['id']} - invalid answer: {ans}")
             continue
+        
+        # Check for missing question or options
+        question = str(row["question"]).strip()
+        options_text = [
+            str(row["option_a"]).strip(),
+            str(row["option_b"]).strip(), 
+            str(row["option_c"]).strip(),
+            str(row["option_d"]).strip()
+        ]
+        
+        if (question in ["", "nan"] or 
+            any(opt in ["", "nan"] for opt in options_text)):
+            print(f"Skipping question {row['id']} - incomplete data")
+            continue
             
         mcq = MCQ(
             uid=str(row["id"]),
-            question=str(row["question"]).strip(),
+            question=question,
             options={
-                "A": str(row["option_a"]).strip(),
-                "B": str(row["option_b"]).strip(),
-                "C": str(row["option_c"]).strip(),
-                "D": str(row["option_d"]).strip(),
+                "A": options_text[0],
+                "B": options_text[1],
+                "C": options_text[2],
+                "D": options_text[3],
             },
             answer=ans,
         )
@@ -79,21 +92,22 @@ def load_mcq_csv(path: str, max_questions: int = None) -> List[MCQ]:
     return mcqs
 
 
-def permute_options(options: Dict[str, str], rng: random.Random) -> Tuple[Dict[str, str], Dict[str, str]]:
+def permute_options(options: Dict[str, str], perm_idx: int) -> Tuple[Dict[str, str], Dict[str, str]]:
     """
-    Randomly permute the options and return the new mapping
+    Cyclically permute the options and return the new mapping
     Returns: (new_options, mapping from new_letter -> original_letter)
     """
     letters = ["A", "B", "C", "D"]
     original_items = [(letter, options[letter]) for letter in letters]
     
-    # Shuffle the option texts
-    rng.shuffle(original_items)
+    # Cycle through permutations: shift by (perm_idx % 4)
+    shift = perm_idx % 4
+    cyclic_items = original_items[shift:] + original_items[:shift]
     
     # Create new mapping
-    new_options = {letters[i]: original_items[i][1] for i in range(4)}
+    new_options = {letters[i]: cyclic_items[i][1] for i in range(4)}
     # Track which new position corresponds to which original position
-    new_to_old_mapping = {letters[i]: original_items[i][0] for i in range(4)}
+    new_to_old_mapping = {letters[i]: cyclic_items[i][0] for i in range(4)}
     
     return new_options, new_to_old_mapping
 
@@ -219,8 +233,8 @@ def run_evaluation(model: str, host: str, csv_path: str, n_permutations: int,
     print(f"Temperature: {temperature}")
     print(f"Seed: {seed}")
     
-    # Set up random number generator
-    rng = random.Random(seed)
+    # Note: We no longer need the random number generator for shuffling
+    # but we still use seed for the model's generation consistency
     
     # Load questions
     mcqs = load_mcq_csv(csv_path, max_questions=max_questions)
@@ -243,7 +257,7 @@ def run_evaluation(model: str, host: str, csv_path: str, n_permutations: int,
         for mcq in mcqs:
             for perm_idx in range(n_permutations):
                 # Create permuted version of options
-                permuted_options, new_to_old_mapping = permute_options(mcq.options, rng)
+                permuted_options, new_to_old_mapping = permute_options(mcq.options, perm_idx)
                 
                 # Find where the correct answer ended up
                 correct_new_position = None
@@ -262,7 +276,7 @@ def run_evaluation(model: str, host: str, csv_path: str, n_permutations: int,
                         host=host,
                         temperature=temperature,
                         seed=seed + perm_idx,
-                        timeout=60
+                        timeout=120
                     )
                     
                     predicted_answer = parse_answer(response_text)
@@ -380,9 +394,9 @@ def main():
                        help="Ollama model name (e.g., llama3.2, mistral, qwen2.5)")
     parser.add_argument("--host", type=str, default="http://localhost:11434",
                        help="Ollama host URL")
-    parser.add_argument("--input", type=str, default="data/sample_mcq.csv",
+    parser.add_argument("--input", type=str, default="ict_pp/csv/2012-2020.csv",
                        help="Path to MCQ CSV file")
-    parser.add_argument("--n-permutations", type=int, default=10,
+    parser.add_argument("--n-permutations", type=int, default=50,
                        help="Number of permutations per question")
     parser.add_argument("--temperature", type=float, default=0.0,
                        help="Generation temperature")
