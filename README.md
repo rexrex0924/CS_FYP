@@ -15,3 +15,6 @@ python eval_positional_bias.py --model qwen3:14b-q8_0 --max-questions 20
 
 ## Requirements
 See \`requirements.txt\` for Python dependencies." > README.md
+
+## Link to overleaf
+https://www.overleaf.com/project/68b80dc0e9dfbfe68c951d9a
