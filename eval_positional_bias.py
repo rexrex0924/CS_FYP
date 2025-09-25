@@ -464,7 +464,7 @@ def main():
                        help="Ollama host URL")
     parser.add_argument("--input", type=str, default="ict_pp/csv/2012-2020.csv",
                        help="Path to MCQ CSV file")
-    parser.add_argument("--n-permutations", type=int, default=50,
+    parser.add_argument("--n-permutations", type=int, default=4,
                        help="Number of permutations per question")
     parser.add_argument("--temperature", type=float, default=0.0,
                        help="Generation temperature")
