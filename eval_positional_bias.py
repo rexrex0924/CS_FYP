@@ -9,13 +9,14 @@ import json
 import re
 import time
 import os
+from itertools import combinations
 from collections import Counter, defaultdict
 from dataclasses import dataclass
 from typing import List, Dict, Any, Tuple
 
 import numpy as np
 import pandas as pd
-from scipy.stats import chisquare
+from scipy.stats import chisquare, chi2_contingency
 from tqdm import tqdm
 import requests
 
@@ -352,9 +353,31 @@ def analyze_results(df: pd.DataFrame, model: str, output_file: str):
     print(f"   Chi-square statistic: {chi2_stat:.3f}")
     print(f"   P-value: {p_value:.6f}")
     if p_value < 0.05:
-        print("   Significant deviation from uniform (p < 0.05) - BIAS DETECTED")
+        print("   Significant deviation from uniform (p < 0.05) - OVERALL BIAS DETECTED")
     else:
-        print("   No significant deviation from uniform (p >= 0.05)")
+        print("   No significant overall deviation from uniform (p >= 0.05)")
+
+    # Pairwise comparisons for choice distribution
+    print("\nPAIRWISE CHOICE COMPARISONS (Bonferroni-corrected):")
+    letters = ["A", "B", "C", "D"]
+    comparisons = list(combinations(letters, 2))
+    alpha = 0.05
+    corrected_alpha = alpha / len(comparisons)
+    significant_pairs = 0
+    
+    for pos1, pos2 in comparisons:
+        count1 = choice_counts[pos1]
+        count2 = choice_counts[pos2]
+        
+        # Test if the counts between two positions are significantly different
+        if count1 + count2 > 0:
+            _, p_pair = chisquare([count1, count2])
+            if p_pair < corrected_alpha:
+                significant_pairs += 1
+                print(f"   - {pos1} vs {pos2}: Significant difference (p={p_pair:.4f} < {corrected_alpha:.4f})")
+
+    if significant_pairs == 0:
+        print("   No pairs showed significant differences in choice frequency.")
     
     # Accuracy by position of correct answer
     print(f"\nACCURACY BY CORRECT ANSWER POSITION:")
@@ -372,6 +395,37 @@ def analyze_results(df: pd.DataFrame, model: str, output_file: str):
             print(f"     {letter}: {acc:.3f} (n={count}, diff={diff:+.3f})")
         else:
             print(f"     {letter}: N/A (no questions)")
+
+    # Chi-square test for independence of accuracy and position
+    p_acc = 1.0  # Default value if test is skipped
+    print("\nCHI-SQUARE TEST for Accuracy vs Position:")
+    try:
+        # H0: Accuracy is independent of the correct answer's position
+        contingency_table = pd.crosstab(valid_responses['correct_position'], valid_responses['is_correct'])
+        contingency_table = contingency_table.reindex(["A", "B", "C", "D"], fill_value=0)
+        
+        # Ensure both 'correct' and 'incorrect' columns exist for the test
+        if 0 not in contingency_table.columns: contingency_table[0] = 0
+        if 1 not in contingency_table.columns: contingency_table[1] = 0
+        
+        contingency_table = contingency_table.rename(columns={0: 'Incorrect', 1: 'Correct'})[['Correct', 'Incorrect']]
+        
+        # Test is only valid if there's data and no row/column sums are zero
+        if contingency_table.sum().sum() > 0 and not (contingency_table.sum(axis=0) == 0).any() and not (contingency_table.sum(axis=1) == 0).any():
+            chi2_acc, p_acc, _, _ = chi2_contingency(contingency_table)
+            print(f"   Contingency Table:\n{contingency_table.to_string(header=True)}")
+            print(f"   Chi-square statistic: {chi2_acc:.3f}")
+            print(f"   P-value: {p_acc:.6f}")
+            if p_acc < 0.05:
+                print("   Significant relationship between accuracy and position (p < 0.05) - ACCURACY BIAS DETECTED")
+            else:
+                print("   No significant relationship between accuracy and position (p >= 0.05)")
+        else:
+            print("   Skipped: Not enough data diversity for a valid test (e.g., all answers correct or incorrect).")
+            print(f"   Contingency Table:\n{contingency_table.to_string(header=True)}")
+            
+    except Exception as e:
+        print(f"   Could not perform chi-square test for accuracy: {e}")
     
     # Position bias score (standard deviation of choice percentages)
     choice_percentages = choice_counts.values / total_valid * 100
@@ -382,10 +436,24 @@ def analyze_results(df: pd.DataFrame, model: str, output_file: str):
     print(f"\nFull results saved to: {output_file}")
     
     # Summary
-    if p_value < 0.05 or position_bias_score > 5:
-        print(f"\nCONCLUSION: {model} shows evidence of positional bias")
+    bias_detected = False
+    reasons = []
+    if p_value < 0.05:
+        bias_detected = True
+        reasons.append("overall choice distribution is not uniform")
+    if p_acc < 0.05:
+        bias_detected = True
+        reasons.append("accuracy depends on answer position")
+    if position_bias_score > 5: # Keep this as a heuristic measure
+        if not bias_detected: # Avoid duplicate reporting if p-value already caught it
+            reasons.append(f"choice distribution is imbalanced (score: {position_bias_score:.2f})")
+        bias_detected = True
+
+    if bias_detected:
+        print(f"\nCONCLUSION: {model} shows evidence of positional bias.")
+        print(f"   Reasons: {'; '.join(reasons)}.")
     else:
-        print(f"\nCONCLUSION: {model} shows minimal positional bias")
+        print(f"\nCONCLUSION: {model} shows minimal positional bias.")
 
 
 def main():
