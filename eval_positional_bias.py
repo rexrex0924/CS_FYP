@@ -310,55 +310,74 @@ def run_evaluation(model: str, host: str, csv_path: str, n_permutations: int,
     
     # Save results to CSV
     df = pd.DataFrame(results)
-    os.makedirs(os.path.dirname(output_prefix) if os.path.dirname(output_prefix) else ".", exist_ok=True)
-    output_file = f"{output_prefix}_{model.replace(':', '_').replace('/', '_')}.csv"
-    df.to_csv(output_file, index=False)
+    
+    csv_dir = os.path.join("results", "csv_results")
+    stat_dir = os.path.join("results", "stat_results")
+    os.makedirs(csv_dir, exist_ok=True)
+    os.makedirs(stat_dir, exist_ok=True)
+
+    base_prefix = os.path.basename(output_prefix)
+    output_filename_base = f"{base_prefix}_{model.replace(':', '_').replace('/', '_')}"
+    
+    csv_output_file = os.path.join(csv_dir, f"{output_filename_base}.csv")
+    df.to_csv(csv_output_file, index=False)
     
     # Analyze results
-    analyze_results(df, model, output_file)
+    analyze_results(df, model, csv_output_file, stat_dir, output_filename_base)
 
 
-def analyze_results(df: pd.DataFrame, model: str, output_file: str):
+def analyze_results(df: pd.DataFrame, model: str, output_file: str, stat_dir: str, output_filename_base: str):
     """Analyze and print results of positional bias evaluation"""
     
-    print(f"\n=== POSITIONAL BIAS ANALYSIS for {model} ===")
+    analysis_file_path = os.path.join(stat_dir, f"{output_filename_base}_analysis.txt")
+    report_lines = []
+
+    def _log(message):
+        print(message)
+        report_lines.append(str(message))
+
+    _log(f"\n=== POSITIONAL BIAS ANALYSIS for {model} ===")
     
     # Filter out failed responses
     valid_responses = df[df["predicted_answer"].isin(["A", "B", "C", "D"])]
     failed_responses = len(df) - len(valid_responses)
     
     if failed_responses > 0:
-        print(f"WARNING: {failed_responses}/{len(df)} responses failed to parse")
+        _log(f"WARNING: {failed_responses}/{len(df)} responses failed to parse")
     
     if len(valid_responses) == 0:
-        print("ERROR: No valid responses to analyze")
+        _log("ERROR: No valid responses to analyze")
+        # Save what we have and exit
+        with open(analysis_file_path, "w", encoding="utf-8") as f:
+            f.write("\n".join(report_lines))
+        print(f"\nAnalysis report saved to: {analysis_file_path}")
         return
     
     # Overall choice distribution
     choice_counts = valid_responses["predicted_answer"].value_counts().reindex(["A", "B", "C", "D"], fill_value=0)
     total_valid = len(valid_responses)
     
-    print(f"\nCHOICE DISTRIBUTION (n={total_valid}):")
+    _log(f"\nCHOICE DISTRIBUTION (n={total_valid}):")
     for letter in ["A", "B", "C", "D"]:
         count = choice_counts[letter]
         percentage = (count / total_valid * 100) if total_valid > 0 else 0
-        print(f"   {letter}: {count:4d} ({percentage:5.1f}%)")
+        _log(f"   {letter}: {count:4d} ({percentage:5.1f}%)")
     
     # Chi-square test against uniform distribution
     expected_per_choice = total_valid / 4
     expected = [expected_per_choice] * 4
     chi2_stat, p_value = chisquare(choice_counts.values, f_exp=expected)
     
-    print(f"\nCHI-SQUARE TEST vs Uniform Distribution:")
-    print(f"   Chi-square statistic: {chi2_stat:.3f}")
-    print(f"   P-value: {p_value:.6f}")
+    _log(f"\nCHI-SQUARE TEST vs Uniform Distribution:")
+    _log(f"   Chi-square statistic: {chi2_stat:.3f}")
+    _log(f"   P-value: {p_value:.6f}")
     if p_value < 0.05:
-        print("   Significant deviation from uniform (p < 0.05) - OVERALL BIAS DETECTED")
+        _log("   Significant deviation from uniform (p < 0.05) - OVERALL BIAS DETECTED")
     else:
-        print("   No significant overall deviation from uniform (p >= 0.05)")
+        _log("   No significant overall deviation from uniform (p >= 0.05)")
 
     # Pairwise comparisons for choice distribution
-    print("\nPAIRWISE CHOICE COMPARISONS (Bonferroni-corrected):")
+    _log("\nPAIRWISE CHOICE COMPARISONS (Bonferroni-corrected):")
     letters = ["A", "B", "C", "D"]
     comparisons = list(combinations(letters, 2))
     alpha = 0.05
@@ -374,31 +393,31 @@ def analyze_results(df: pd.DataFrame, model: str, output_file: str):
             _, p_pair = chisquare([count1, count2])
             if p_pair < corrected_alpha:
                 significant_pairs += 1
-                print(f"   - {pos1} vs {pos2}: Significant difference (p={p_pair:.4f} < {corrected_alpha:.4f})")
+                _log(f"   - {pos1} vs {pos2}: Significant difference (p={p_pair:.4f} < {corrected_alpha:.4f})")
 
     if significant_pairs == 0:
-        print("   No pairs showed significant differences in choice frequency.")
+        _log("   No pairs showed significant differences in choice frequency.")
     
     # Accuracy by position of correct answer
-    print(f"\nACCURACY BY CORRECT ANSWER POSITION:")
+    _log(f"\nACCURACY BY CORRECT ANSWER POSITION:")
     accuracy_by_position = valid_responses.groupby("correct_position")["is_correct"].agg(['mean', 'count'])
     
     overall_accuracy = valid_responses["is_correct"].mean()
-    print(f"   Overall accuracy: {overall_accuracy:.3f}")
-    print(f"   Position-specific accuracy:")
+    _log(f"   Overall accuracy: {overall_accuracy:.3f}")
+    _log(f"   Position-specific accuracy:")
     
     for letter in ["A", "B", "C", "D"]:
         if letter in accuracy_by_position.index:
             acc = accuracy_by_position.loc[letter, "mean"]
             count = accuracy_by_position.loc[letter, "count"]
             diff = acc - overall_accuracy
-            print(f"     {letter}: {acc:.3f} (n={count}, diff={diff:+.3f})")
+            _log(f"     {letter}: {acc:.3f} (n={count}, diff={diff:+.3f})")
         else:
-            print(f"     {letter}: N/A (no questions)")
+            _log(f"     {letter}: N/A (no questions)")
 
     # Chi-square test for independence of accuracy and position
     p_acc = 1.0  # Default value if test is skipped
-    print("\nCHI-SQUARE TEST for Accuracy vs Position:")
+    _log("\nCHI-SQUARE TEST for Accuracy vs Position:")
     try:
         # H0: Accuracy is independent of the correct answer's position
         contingency_table = pd.crosstab(valid_responses['correct_position'], valid_responses['is_correct'])
@@ -413,27 +432,27 @@ def analyze_results(df: pd.DataFrame, model: str, output_file: str):
         # Test is only valid if there's data and no row/column sums are zero
         if contingency_table.sum().sum() > 0 and not (contingency_table.sum(axis=0) == 0).any() and not (contingency_table.sum(axis=1) == 0).any():
             chi2_acc, p_acc, _, _ = chi2_contingency(contingency_table)
-            print(f"   Contingency Table:\n{contingency_table.to_string(header=True)}")
-            print(f"   Chi-square statistic: {chi2_acc:.3f}")
-            print(f"   P-value: {p_acc:.6f}")
+            _log(f"   Contingency Table:\n{contingency_table.to_string(header=True)}")
+            _log(f"   Chi-square statistic: {chi2_acc:.3f}")
+            _log(f"   P-value: {p_acc:.6f}")
             if p_acc < 0.05:
-                print("   Significant relationship between accuracy and position (p < 0.05) - ACCURACY BIAS DETECTED")
+                _log("   Significant relationship between accuracy and position (p < 0.05) - ACCURACY BIAS DETECTED")
             else:
-                print("   No significant relationship between accuracy and position (p >= 0.05)")
+                _log("   No significant relationship between accuracy and position (p >= 0.05)")
         else:
-            print("   Skipped: Not enough data diversity for a valid test (e.g., all answers correct or incorrect).")
-            print(f"   Contingency Table:\n{contingency_table.to_string(header=True)}")
+            _log("   Skipped: Not enough data diversity for a valid test (e.g., all answers correct or incorrect).")
+            _log(f"   Contingency Table:\n{contingency_table.to_string(header=True)}")
             
     except Exception as e:
-        print(f"   Could not perform chi-square test for accuracy: {e}")
+        _log(f"   Could not perform chi-square test for accuracy: {e}")
     
     # Position bias score (standard deviation of choice percentages)
     choice_percentages = choice_counts.values / total_valid * 100
     position_bias_score = np.std(choice_percentages)
-    print(f"\nPOSITION BIAS SCORE: {position_bias_score:.2f}")
-    print(f"   (Standard deviation of choice percentages - higher = more biased)")
+    _log(f"\nPOSITION BIAS SCORE: {position_bias_score:.2f}")
+    _log(f"   (Standard deviation of choice percentages - higher = more biased)")
     
-    print(f"\nFull results saved to: {output_file}")
+    _log(f"\nFull results saved to: {output_file}")
     
     # Summary
     bias_detected = False
@@ -450,10 +469,16 @@ def analyze_results(df: pd.DataFrame, model: str, output_file: str):
         bias_detected = True
 
     if bias_detected:
-        print(f"\nCONCLUSION: {model} shows evidence of positional bias.")
-        print(f"   Reasons: {'; '.join(reasons)}.")
+        _log(f"\nCONCLUSION: {model} shows evidence of positional bias.")
+        _log(f"   Reasons: {'; '.join(reasons)}.")
     else:
-        print(f"\nCONCLUSION: {model} shows minimal positional bias.")
+        _log(f"\nCONCLUSION: {model} shows minimal positional bias.")
+
+    # Save the full report to a file
+    with open(analysis_file_path, "w", encoding="utf-8") as f:
+        f.write("\n".join(report_lines))
+    
+    print(f"\nAnalysis report saved to: {analysis_file_path}")
 
 
 def main():
@@ -462,7 +487,7 @@ def main():
                        help="Ollama model name (e.g., llama3.2, mistral, qwen2.5)")
     parser.add_argument("--host", type=str, default="http://localhost:11434",
                        help="Ollama host URL")
-    parser.add_argument("--input", type=str, default="ict_pp/csv/2012-2020.csv",
+    parser.add_argument("--input", type=str, default="mmlu\data\professional_law_dataset.csv",
                        help="Path to MCQ CSV file")
     parser.add_argument("--n-permutations", type=int, default=4,
                        help="Number of permutations per question")
