@@ -10,7 +10,7 @@ This project evaluates positional bias in Large Language Models (LLMs) using mul
 
 ## Usage
 \`\`\`bash
-python eval_positional_bias.py --model qwen3:14b-q8_0 --max-questions 20
+python eval_positional_bias.py --model {model name} --max-questions {maximum no. of questions that you want to read from the csv}
 \`\`\`
 
 ## Requirements

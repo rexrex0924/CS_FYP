@@ -316,8 +316,14 @@ def run_evaluation(model: str, host: str, csv_path: str, n_permutations: int,
     os.makedirs(csv_dir, exist_ok=True)
     os.makedirs(stat_dir, exist_ok=True)
 
-    base_prefix = os.path.basename(output_prefix)
-    output_filename_base = f"{base_prefix}_{model.replace(':', '_').replace('/', '_')}"
+    # Extract dataset name from csv_path (without extension)
+    dataset_name = os.path.splitext(os.path.basename(csv_path))[0]
+    
+    # Format model name (replace : and / with _)
+    model_name = model.replace(':', '_').replace('/', '_')
+    
+    # Create output filename: dataset-model
+    output_filename_base = f"{dataset_name}-{model_name}"
     
     csv_output_file = os.path.join(csv_dir, f"{output_filename_base}.csv")
     df.to_csv(csv_output_file, index=False)
