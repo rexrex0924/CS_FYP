@@ -1,49 +1,48 @@
 
-=== POSITIONAL BIAS ANALYSIS for llama3:8b-instruct-q8_0 ===
+=== POSITIONAL BIAS ANALYSIS for gemma3:1b ===
 
-CHOICE DISTRIBUTION (n=1000):
-   A:  120 ( 12.0%)
-   B:  417 ( 41.7%)
-   C:  281 ( 28.1%)
-   D:  182 ( 18.2%)
+CHOICE DISTRIBUTION (n=1084):
+   A:  291 ( 26.8%)
+   B:   64 (  5.9%)
+   C:  645 ( 59.5%)
+   D:   84 (  7.7%)
 
 CHI-SQUARE TEST vs Uniform Distribution:
-   Chi-square statistic: 201.496
+   Chi-square statistic: 804.775
    P-value: 0.000000
    Significant deviation from uniform (p < 0.05) - OVERALL BIAS DETECTED
 
 PAIRWISE CHOICE COMPARISONS (Bonferroni-corrected):
    - A vs B: Significant difference (p=0.0000 < 0.0083)
    - A vs C: Significant difference (p=0.0000 < 0.0083)
-   - A vs D: Significant difference (p=0.0004 < 0.0083)
+   - A vs D: Significant difference (p=0.0000 < 0.0083)
    - B vs C: Significant difference (p=0.0000 < 0.0083)
-   - B vs D: Significant difference (p=0.0000 < 0.0083)
    - C vs D: Significant difference (p=0.0000 < 0.0083)
 
 ACCURACY BY CORRECT ANSWER POSITION:
-   Overall accuracy: 0.458
+   Overall accuracy: 0.337
    Position-specific accuracy:
-     A: 0.248 (n=250, diff=-0.210)
-     B: 0.668 (n=250, diff=+0.210)
-     C: 0.548 (n=250, diff=+0.090)
-     D: 0.368 (n=250, diff=-0.090)
+     A: 0.358 (n=271, diff=+0.021)
+     B: 0.096 (n=271, diff=-0.241)
+     C: 0.745 (n=271, diff=+0.409)
+     D: 0.148 (n=271, diff=-0.189)
 
 CHI-SQUARE TEST for Accuracy vs Position:
    Contingency Table:
 is_correct        Correct  Incorrect
 correct_position                    
-A                      62        188
-B                     167         83
-C                     137        113
-D                      92        158
-   Chi-square statistic: 105.142
+A                      97        174
+B                      26        245
+C                     202         69
+D                      40        231
+   Chi-square statistic: 316.941
    P-value: 0.000000
    Significant relationship between accuracy and position (p < 0.05) - ACCURACY BIAS DETECTED
 
-POSITION BIAS SCORE: 11.22
+POSITION BIAS SCORE: 21.54
    (Standard deviation of choice percentages - higher = more biased)
 
-Full results saved to: results\csv_results\positional_bias_llama3_8b-instruct-q8_0.csv
+Full results saved to: results\csv_results\2012-2020_ICT_DSE-gemma3_1b.csv
 
-CONCLUSION: llama3:8b-instruct-q8_0 shows evidence of positional bias.
+CONCLUSION: gemma3:1b shows evidence of positional bias.
    Reasons: overall choice distribution is not uniform; accuracy depends on answer position.

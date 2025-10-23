@@ -493,7 +493,7 @@ def main():
                        help="Ollama model name (e.g., llama3.2, mistral, qwen2.5)")
     parser.add_argument("--host", type=str, default="http://localhost:11434",
                        help="Ollama host URL")
-    parser.add_argument("--input", type=str, default="mmlu\data\professional_law_dataset.csv",
+    parser.add_argument("--input", type=str, default="ict_pp/csv/2012-2020_ICT_DSE.csv",
                        help="Path to MCQ CSV file")
     parser.add_argument("--n-permutations", type=int, default=4,
                        help="Number of permutations per question")
