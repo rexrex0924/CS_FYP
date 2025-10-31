@@ -29,8 +29,12 @@ B. {B}
 C. {C}
 D. {D}
 
-You must respond with exactly one letter (A, B, C, or D) and nothing else.
-Answer:"""
+You must provide your confidence probabilities for each option (as decimals that sum to 1.0), then select your answer.
+Format your response EXACTLY as follows:
+Probabilities: A=0.XX, B=0.XX, C=0.XX, D=0.XX
+Answer: [letter]
+
+Response:"""
 
 # Regex to extract answer letter
 LETTER_RE = re.compile(r'\b([A-D])\b')
@@ -221,9 +225,124 @@ def parse_answer(response_text: str) -> str:
     
     return ""
 
+
+def parse_probabilities_and_answer(response_text: str) -> Tuple[Dict[str, float], str]:
+    """
+    Extract self-reported probabilities and answer from model response
+    Returns: (probabilities_dict, answer_letter)
+    """
+    response_text_original = response_text
+    response_text = response_text.strip()
+    
+    # Initialize default values (uniform distribution)
+    probabilities = {"A": 0.25, "B": 0.25, "C": 0.25, "D": 0.25}
+    answer = ""
+    
+    # Try multiple probability parsing patterns
+    # Pattern 1: "Probabilities: A=0.XX, B=0.XX, C=0.XX, D=0.XX"
+    prob_patterns = [
+        r'Probabilities?\s*:\s*A\s*[=:]\s*([0-9.]+)(?:\s*,\s*|\s+)B\s*[=:]\s*([0-9.]+)(?:\s*,\s*|\s+)C\s*[=:]\s*([0-9.]+)(?:\s*,\s*|\s+)D\s*[=:]\s*([0-9.]+)',
+        r'A\s*[=:]\s*([0-9.]+)(?:\s*,\s*|\s+)B\s*[=:]\s*([0-9.]+)(?:\s*,\s*|\s+)C\s*[=:]\s*([0-9.]+)(?:\s*,\s*|\s+)D\s*[=:]\s*([0-9.]+)',
+        r'A:\s*([0-9.]+)%?\s*,?\s*B:\s*([0-9.]+)%?\s*,?\s*C:\s*([0-9.]+)%?\s*,?\s*D:\s*([0-9.]+)%?',
+    ]
+    
+    for pattern in prob_patterns:
+        match = re.search(pattern, response_text, re.IGNORECASE)
+        if match:
+            try:
+                prob_a = float(match.group(1))
+                prob_b = float(match.group(2))
+                prob_c = float(match.group(3))
+                prob_d = float(match.group(4))
+                
+                # Handle percentage format (if values > 1)
+                if prob_a > 1 or prob_b > 1 or prob_c > 1 or prob_d > 1:
+                    prob_a /= 100
+                    prob_b /= 100
+                    prob_c /= 100
+                    prob_d /= 100
+                
+                # Normalize to sum to 1.0 if needed
+                total = prob_a + prob_b + prob_c + prob_d
+                if total > 0:
+                    probabilities = {
+                        "A": prob_a / total,
+                        "B": prob_b / total,
+                        "C": prob_c / total,
+                        "D": prob_d / total,
+                    }
+                    break
+            except (ValueError, ZeroDivisionError):
+                continue  # Try next pattern
+    
+    # Extract answer letter
+    answer_patterns = [
+        r'Answer\s*:\s*([A-D])\b',
+        r'answer\s*:\s*([A-D])\b',
+        r'ANSWER\s*:\s*([A-D])\b',
+    ]
+    
+    for pattern in answer_patterns:
+        answer_match = re.search(pattern, response_text, re.IGNORECASE)
+        if answer_match:
+            answer = answer_match.group(1).upper()
+            break
+    
+    # If no answer found with "Answer:" pattern, use existing parse_answer logic
+    if not answer:
+        answer = parse_answer(response_text_original)
+    
+    return probabilities, answer
+
+
+def estimate_probabilities(model: str, prompt: str, host: str, 
+                          n_samples: int = 20, temperature: float = 0.7,
+                          seed: int = 42, timeout: int = 60) -> Dict[str, float]:
+    """
+    Estimate probability distribution over choices A, B, C, D
+    by sampling multiple responses with temperature > 0
+    This is slower but provides empirical probability estimates
+    """
+    choices = []
+    
+    for i in range(n_samples):
+        try:
+            response_text = call_ollama(
+                model=model,
+                prompt=prompt,
+                host=host,
+                temperature=temperature,
+                seed=seed + i,  # Different seed for each sample
+                timeout=timeout
+            )
+            answer = parse_answer(response_text)
+            if answer in ["A", "B", "C", "D"]:
+                choices.append(answer)
+        except Exception:
+            # Skip failed samples
+            continue
+    
+    # Calculate empirical probabilities
+    total = len(choices)
+    if total == 0:
+        # If all samples failed, return uniform distribution
+        return {"A": 0.25, "B": 0.25, "C": 0.25, "D": 0.25}
+    
+    counter = Counter(choices)
+    probabilities = {
+        "A": counter.get("A", 0) / total,
+        "B": counter.get("B", 0) / total,
+        "C": counter.get("C", 0) / total,
+        "D": counter.get("D", 0) / total,
+    }
+    
+    return probabilities
+
+
 def run_evaluation(model: str, host: str, csv_path: str, n_permutations: int,
                   temperature: float, seed: int, max_questions: int,
-                  output_prefix: str):
+                  output_prefix: str, use_sampling: bool = False,
+                  sampling_n: int = 10):
     """Run the full positional bias evaluation"""
     
     print(f"\n=== Starting Positional Bias Evaluation ===")
@@ -233,6 +352,9 @@ def run_evaluation(model: str, host: str, csv_path: str, n_permutations: int,
     print(f"Permutations per question: {n_permutations}")
     print(f"Temperature: {temperature}")
     print(f"Seed: {seed}")
+    print(f"Probability method: {'Sampling-based' if use_sampling else 'Prompt-based (self-reported)'}")
+    if use_sampling:
+        print(f"Sampling size: {sampling_n} samples per question")
     
     # Note: We no longer need the random number generator for shuffling
     # but we still use seed for the model's generation consistency
@@ -280,14 +402,30 @@ def run_evaluation(model: str, host: str, csv_path: str, n_permutations: int,
                         timeout=120
                     )
                     
-                    predicted_answer = parse_answer(response_text)
+                    # Parse probabilities and answer from response
+                    probabilities, predicted_answer = parse_probabilities_and_answer(response_text)
                     is_correct = (predicted_answer == correct_new_position)
+                    
+                    # Optionally use sampling-based probability estimation
+                    if use_sampling:
+                        sampled_probs = estimate_probabilities(
+                            model=model,
+                            prompt=prompt,
+                            host=host,
+                            n_samples=sampling_n,
+                            temperature=0.7,
+                            seed=seed + perm_idx + 10000,
+                            timeout=120
+                        )
+                        # Use sampled probabilities instead
+                        probabilities = sampled_probs
                     
                 except Exception as e:
                     print(f"Error processing {mcq.uid} perm {perm_idx}: {e}")
                     response_text = ""
                     predicted_answer = ""
                     is_correct = False
+                    probabilities = {"A": 0.25, "B": 0.25, "C": 0.25, "D": 0.25}
                 
                 # Store result
                 results.append({
@@ -298,6 +436,10 @@ def run_evaluation(model: str, host: str, csv_path: str, n_permutations: int,
                     "correct_position": correct_new_position,
                     "original_correct": mcq.answer,
                     "is_correct": int(is_correct),
+                    "prob_A": probabilities["A"],
+                    "prob_B": probabilities["B"],
+                    "prob_C": probabilities["C"],
+                    "prob_D": probabilities["D"],
                     "raw_response": response_text.replace('\n', ' ').replace('\r', ''),
                     "question": mcq.question,
                     "option_A": permuted_options["A"],
@@ -322,8 +464,9 @@ def run_evaluation(model: str, host: str, csv_path: str, n_permutations: int,
     # Format model name (replace : and / with _)
     model_name = model.replace(':', '_').replace('/', '_')
     
-    # Create output filename: dataset-model
-    output_filename_base = f"{dataset_name}-{model_name}"
+    # Create output filename: dataset-model-test_probs (to avoid overwriting previous results)
+    prob_method = "sampling" if use_sampling else "prompt"
+    output_filename_base = f"{dataset_name}-{model_name}_test_probs_{prob_method}"
     
     csv_output_file = os.path.join(csv_dir, f"{output_filename_base}.csv")
     df.to_csv(csv_output_file, index=False)
@@ -396,7 +539,7 @@ def analyze_results(df: pd.DataFrame, model: str, output_file: str, stat_dir: st
         
         # Test if the counts between two positions are significantly different
         if count1 + count2 > 0:
-            _, p_pair = ch  isquare([count1, count2])
+            _, p_pair = chisquare([count1, count2])
             if p_pair < corrected_alpha:
                 significant_pairs += 1
                 _log(f"   - {pos1} vs {pos2}: Significant difference (p={p_pair:.4f} < {corrected_alpha:.4f})")
@@ -505,6 +648,10 @@ def main():
                        help="Maximum number of questions to evaluate")
     parser.add_argument("--output-prefix", type=str, default="results/positional_bias",
                        help="Output file prefix")
+    parser.add_argument("--use-sampling", action="store_true",
+                       help="Use sampling-based probability estimation (slower but more accurate)")
+    parser.add_argument("--sampling-n", type=int, default=10,
+                       help="Number of samples for probability estimation (only with --use-sampling)")
     
     args = parser.parse_args()
     
@@ -517,6 +664,10 @@ def main():
         print("Error: n-permutations must be at least 1")
         return
     
+    if args.use_sampling and args.sampling_n < 1:
+        print("Error: sampling-n must be at least 1 when using sampling")
+        return
+    
     # Run evaluation
     run_evaluation(
         model=args.model,
@@ -526,7 +677,9 @@ def main():
         temperature=args.temperature,
         seed=args.seed,
         max_questions=args.max_questions,
-        output_prefix=args.output_prefix
+        output_prefix=args.output_prefix,
+        use_sampling=args.use_sampling,
+        sampling_n=args.sampling_n
     )
 
 
