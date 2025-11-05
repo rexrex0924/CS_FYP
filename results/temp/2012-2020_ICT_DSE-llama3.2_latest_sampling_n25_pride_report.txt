@@ -1,0 +1,22 @@
+======================================================================
+PriDe Debiasing Report
+======================================================================
+Source Dataset: C:/Users/Rex Siu/Desktop/FYP/test/results/temp/2012-2020_ICT_DSE-llama3.2_latest_sampling_n25.csv
+
+Optimal Configuration:
+  Calibration Ratio: 20%
+  Alpha (Debiasing Strength): 0.10
+  Calibration Questions: 20
+  Test Questions: 80
+
+Results:
+  Original Accuracy (from argmax): 0.5625
+  Debiased Accuracy: 0.5656
+  Improvement: +0.0031
+  Position Variance (after debias): 0.001686
+
+Estimated Prior (Model Bias):
+  Position A: 0.1970
+  Position B: 0.1691
+  Position C: 0.5386
+  Position D: 0.0953
