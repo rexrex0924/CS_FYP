@@ -1,0 +1,41 @@
+
+=== POSITIONAL BIAS ANALYSIS for gemma3:12b ===
+
+CHOICE DISTRIBUTION (n=400):
+   A:   91 ( 22.8%)
+   B:  107 ( 26.8%)
+   C:   99 ( 24.8%)
+   D:  103 ( 25.8%)
+
+CHI-SQUARE TEST vs Uniform Distribution:
+   Chi-square statistic: 1.400
+   P-value: 0.705535
+   No significant overall deviation from uniform (p >= 0.05)
+
+PAIRWISE CHOICE COMPARISONS (Bonferroni-corrected):
+   No pairs showed significant differences in choice frequency.
+
+ACCURACY BY CORRECT ANSWER POSITION:
+   Overall accuracy: 0.818
+   Position-specific accuracy:
+     A: 0.770 (n=100, diff=-0.047)
+     B: 0.860 (n=100, diff=+0.042)
+     C: 0.810 (n=100, diff=-0.007)
+     D: 0.830 (n=100, diff=+0.012)
+
+CHI-SQUARE TEST for Accuracy vs Position:
+   Contingency Table:
+is_correct        Correct  Incorrect
+correct_position                    
+A                      77         23
+B                      86         14
+C                      81         19
+D                      83         17
+   Chi-square statistic: 2.865
+   P-value: 0.412847
+   No significant relationship between accuracy and position (p >= 0.05)
+
+POSITION BIAS SCORE: 1.48
+   (Standard deviation of choice percentages - higher = more biased)
+
+Full results saved to: results\csv_results\2012-2020_ICT_DSE-gemma3_12b_sampling_n25.csv

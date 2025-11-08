@@ -1,0 +1,43 @@
+
+=== POSITIONAL BIAS ANALYSIS for mistral:latest ===
+
+CHOICE DISTRIBUTION (n=400):
+   A:  189 ( 47.2%)
+   B:   70 ( 17.5%)
+   C:   70 ( 17.5%)
+   D:   71 ( 17.8%)
+
+CHI-SQUARE TEST vs Uniform Distribution:
+   Chi-square statistic: 105.620
+   P-value: 0.000000
+   Significant deviation from uniform (p < 0.05) - OVERALL BIAS DETECTED
+
+PAIRWISE CHOICE COMPARISONS (Bonferroni-corrected):
+   - A vs B: Significant difference (p=0.0000 < 0.0083)
+   - A vs C: Significant difference (p=0.0000 < 0.0083)
+   - A vs D: Significant difference (p=0.0000 < 0.0083)
+
+ACCURACY BY CORRECT ANSWER POSITION:
+   Overall accuracy: 0.595
+   Position-specific accuracy:
+     A: 0.810 (n=100, diff=+0.215)
+     B: 0.550 (n=100, diff=-0.045)
+     C: 0.530 (n=100, diff=-0.065)
+     D: 0.490 (n=100, diff=-0.105)
+
+CHI-SQUARE TEST for Accuracy vs Position:
+   Contingency Table:
+is_correct        Correct  Incorrect
+correct_position                    
+A                      81         19
+B                      55         45
+C                      53         47
+D                      49         51
+   Chi-square statistic: 26.351
+   P-value: 0.000008
+   Significant relationship between accuracy and position (p < 0.05) - ACCURACY BIAS DETECTED
+
+POSITION BIAS SCORE: 12.85
+   (Standard deviation of choice percentages - higher = more biased)
+
+Full results saved to: results\temp\2012-2020_ICT_DSE-mistral_latest_sampling_n25.csv

@@ -1,0 +1,22 @@
+======================================================================
+PriDe Debiasing Report
+======================================================================
+Source Dataset: results\csv_results\college_cs-gemma3_12b_sampling_n25.csv
+
+Optimal Configuration:
+  Calibration Ratio: 20%
+  Alpha (Debiasing Strength): 1.00
+  Calibration Questions: 20
+  Test Questions: 80
+
+Results:
+  Original Accuracy (from argmax): 0.5125
+  Debiased Accuracy: 0.5219
+  Improvement: +0.0094
+  Position Variance (after debias): 0.003835
+
+Estimated Prior (Model Bias):
+  Position A: 0.1449
+  Position B: 0.2748
+  Position C: 0.2076
+  Position D: 0.3728
