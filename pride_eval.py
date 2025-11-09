@@ -3,6 +3,8 @@ import numpy as np
 from collections import defaultdict
 from typing import Dict, List, Tuple
 import warnings
+from pathlib import Path
+import argparse
 warnings.filterwarnings('ignore')
 
 
@@ -597,10 +599,8 @@ def check_prior_stability_with_alpha(df: pd.DataFrame,
     print(f"   CV:    {accuracies.std()/accuracies.mean():.2%}")
 
 
-def main_comprehensive():
+def main_comprehensive(csv_path: str):
     """Comprehensive analysis with all diagnostics."""
-
-    csv_path = 'https://github.com/rexrex0924/CS_FYP/blob/main/results/csv_results/2012-2020_ICT_DSE-gemma3_4b_test_probs_prompt.csv?raw=true'
 
     print("=" * 70)
     print("PriDe: COMPREHENSIVE ANALYSIS")
@@ -664,55 +664,65 @@ def main_comprehensive():
     print(f"   test_df_debiased, info = pride.fit_and_predict(df)")
     print(f"   ```")
 
-    # # 5. Save best model results
-    # print(f"\n📁 Saving results...")
+    # 5. Save best model results and summary report
+    print(f"\n📁 Saving results...")
 
-    # pride_final = PriDeDebiasing(
-    #     calibration_ratio=0.20,
-    #     alpha=best_alpha,
-    #     random_seed=42
-    # )
+    # Rerun with the best alpha to get the final debiased dataframe and info
+    pride_final = PriDeDebiasing(
+        calibration_ratio=0.20,
+        alpha=best_alpha,
+        random_seed=42
+    )
+    test_df_debiased_final, calibration_info_final = pride_final.fit_and_predict(df)
 
-    # test_df_debiased_final, calibration_info_final = pride_final.fit_and_predict(df)
+    # Define output paths
+    input_path = Path(csv_path)
+    csv_output_dir = Path("results") / "pride_optimized_csv_results"
+    stat_output_dir = Path("results") / "pride_optimized_stat_results"
+    csv_output_dir.mkdir(parents=True, exist_ok=True)
+    stat_output_dir.mkdir(parents=True, exist_ok=True)
+    output_stem = input_path.stem
+    
+    # Path for the debiased data CSV
+    output_csv_path = csv_output_dir / f"{output_stem}_pride_debiased.csv"
+    test_df_debiased_final.to_csv(output_csv_path, index=False)
 
-    # output_path = csv_path.replace('.csv', f'_pride_alpha{int(best_alpha*100):02d}.csv')
-    # test_df_debiased_final.to_csv(output_path, index=False)
+    print(f"✅ Debiased results saved to:")
+    print(f"   {output_csv_path}")
 
-    # print(f"✅ Debiased results saved to:")
-    # print(f"   {output_path}")
+    # Path for the summary report TXT
+    report_path = stat_output_dir / f"{output_stem}_pride_report.txt"
+    with open(report_path, 'w', encoding='utf-8') as f:
+        f.write("=" * 70 + "\n")
+        f.write("PriDe Debiasing Report\n")
+        f.write("=" * 70 + "\n")
+        f.write(f"Source Dataset: {csv_path}\n\n")
+        f.write(f"Optimal Configuration:\n")
+        f.write(f"  Calibration Ratio: 20%\n")
+        f.write(f"  Alpha (Debiasing Strength): {best_alpha:.2f}\n")
+        f.write(f"  Calibration Questions: {calibration_info_final['n_calibration_questions']}\n")
+        f.write(f"  Test Questions: {calibration_info_final['n_test_questions']}\n\n")
+        f.write(f"Results:\n")
+        f.write(f"  Original Accuracy (from argmax): {best_result['original_acc']:.4f}\n")
+        f.write(f"  Debiased Accuracy: {best_result['debiased_acc']:.4f}\n")
+        f.write(f"  Improvement: {best_result['improvement']:+.4f}\n")
+        f.write(f"  Position Variance (after debias): {best_result['pos_variance']:.6f}\n\n")
+        f.write(f"Estimated Prior (Model Bias):\n")
+        for i, pos in enumerate(['A', 'B', 'C', 'D']):
+            f.write(f"  Position {pos}: {calibration_info_final['estimated_prior'][i]:.4f}\n")
 
-    # # Save summary report
-    # report_path = csv_path.replace('.csv', '_pride_report.txt')
-    # with open(report_path, 'w') as f:
-    #     f.write("=" * 70 + "\n")
-    #     f.write("PriDe Debiasing Report\n")
-    #     f.write("=" * 70 + "\n")
-    #     f.write(f"Date: 2025-10-31 16:57:58 UTC\n")
-    #     f.write(f"User: h4yd3nt4ng\n")
-    #     f.write(f"Dataset: {csv_path}\n\n")
-    #     f.write(f"Optimal Configuration:\n")
-    #     f.write(f"  Calibration Ratio: 20%\n")
-    #     f.write(f"  Alpha: {best_alpha:.2f}\n")
-    #     f.write(f"  Calibration Questions: {calibration_info_final['n_calibration_questions']}\n")
-    #     f.write(f"  Test Questions: {calibration_info_final['n_test_questions']}\n\n")
-    #     f.write(f"Results:\n")
-    #     f.write(f"  Original Accuracy: {best_result['original_acc']:.4f}\n")
-    #     f.write(f"  Debiased Accuracy: {best_result['debiased_acc']:.4f}\n")
-    #     f.write(f"  Improvement: {best_result['improvement']:+.4f}\n")
-    #     f.write(f"  Position Variance: {best_result['pos_variance']:.6f}\n\n")
-    #     f.write(f"Estimated Prior:\n")
-    #     for i, pos in enumerate(['A', 'B', 'C', 'D']):
-    #         f.write(f"  Position {pos}: {calibration_info_final['estimated_prior'][i]:.4f}\n")
+    print(f"✅ Summary report saved to:")
+    print(f"   {report_path}")
 
-    # print(f"✅ Summary report saved to:")
-    # print(f"   {report_path}")
-
-    # print("\n" + "=" * 70)
-    # print("ANALYSIS COMPLETE! 🎉")
-    # print("=" * 70)
+    print("\n" + "=" * 70)
+    print("ANALYSIS COMPLETE! 🎉")
+    print("=" * 70)
 
     return results, best_alpha
 
 
 if __name__ == "__main__":
-    results, best_alpha = main_comprehensive()
+    parser = argparse.ArgumentParser(description="Run PriDe debiasing and comprehensive analysis.")
+    parser.add_argument("csv_path", help="Path to the input CSV with model probabilities.")
+    args = parser.parse_args()
+    results, best_alpha = main_comprehensive(args.csv_path)

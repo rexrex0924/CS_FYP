@@ -1,0 +1,45 @@
+=== POSITIONAL BIAS ANALYSIS for mistral:latest ===
+
+CHOICE DISTRIBUTION (n=1084):
+   A:  486 ( 44.8%)
+   B:  197 ( 18.2%)
+   C:  208 ( 19.2%)
+   D:  193 ( 17.8%)
+
+CHI-SQUARE TEST vs Uniform Distribution:
+   Chi-square statistic: 227.875
+   P-value: 0.000000
+   Significant deviation from uniform (p < 0.05) - OVERALL BIAS DETECTED
+
+PAIRWISE CHOICE COMPARISONS (Bonferroni-corrected):
+   - A vs B: Significant difference (p=0.0000 < 0.0083)
+   - A vs C: Significant difference (p=0.0000 < 0.0083)
+   - A vs D: Significant difference (p=0.0000 < 0.0083)
+
+ACCURACY BY CORRECT ANSWER POSITION:
+   Overall accuracy: 0.572
+   Position-specific accuracy:
+     A: 0.768 (n=271, diff=+0.196)
+     B: 0.513 (n=271, diff=-0.059)
+     C: 0.520 (n=271, diff=-0.052)
+     D: 0.487 (n=271, diff=-0.085)
+
+CHI-SQUARE TEST for Accuracy vs Position:
+   Contingency Table:
+is_correct        Correct  Incorrect
+correct_position
+A                     208         63
+B                     139        132
+C                     141        130
+D                     132        139
+   Chi-square statistic: 57.124
+   P-value: 0.000000
+   Significant relationship between accuracy and position (p < 0.05) - ACCURACY BIAS DETECTED
+
+POSITION BIAS SCORE: 11.46
+   (Standard deviation of choice percentages - higher = more biased)
+
+Full results saved to: results/positional_bias_mistral_latest.csv
+
+CONCLUSION: mistral:latest shows evidence of positional bias.
+   Reasons: overall choice distribution is not uniform; accuracy depends on answer position.

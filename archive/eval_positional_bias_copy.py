@@ -297,11 +297,12 @@ def parse_probabilities_and_answer(response_text: str) -> Tuple[Dict[str, float]
 
 def estimate_probabilities(model: str, prompt: str, host: str, 
                           n_samples: int = 20, temperature: float = 0.7,
-                          seed: int = 42, timeout: int = 60) -> Dict[str, float]:
+                          seed: int = 42, timeout: int = 60) -> Tuple[Dict[str, float], Dict[str, int], int]:
     """
     Estimate probability distribution over choices A, B, C, D
     by sampling multiple responses with temperature > 0
     This is slower but provides empirical probability estimates
+    Returns: (probabilities, raw_counts, total_samples)
     """
     choices = []
     
@@ -326,17 +327,27 @@ def estimate_probabilities(model: str, prompt: str, host: str,
     total = len(choices)
     if total == 0:
         # If all samples failed, return uniform distribution
-        return {"A": 0.25, "B": 0.25, "C": 0.25, "D": 0.25}
+        return (
+            {"A": 0.25, "B": 0.25, "C": 0.25, "D": 0.25},
+            {"A": 0, "B": 0, "C": 0, "D": 0},
+            0
+        )
     
     counter = Counter(choices)
+    raw_counts = {
+        "A": counter.get("A", 0),
+        "B": counter.get("B", 0),
+        "C": counter.get("C", 0),
+        "D": counter.get("D", 0),
+    }
     probabilities = {
-        "A": counter.get("A", 0) / total,
-        "B": counter.get("B", 0) / total,
-        "C": counter.get("C", 0) / total,
-        "D": counter.get("D", 0) / total,
+        "A": raw_counts["A"] / total,
+        "B": raw_counts["B"] / total,
+        "C": raw_counts["C"] / total,
+        "D": raw_counts["D"] / total,
     }
     
-    return probabilities
+    return probabilities, raw_counts, total
 
 
 def run_evaluation(model: str, host: str, csv_path: str, n_permutations: int,
@@ -392,6 +403,10 @@ def run_evaluation(model: str, host: str, csv_path: str, n_permutations: int,
                 # Build prompt and get model response
                 prompt = build_prompt(mcq, permuted_options)
                 
+                # Initialize sampling-related variables
+                raw_counts = {"A": 0, "B": 0, "C": 0, "D": 0}
+                total_sampled = 0
+                
                 try:
                     response_text = call_ollama(
                         model=model,
@@ -408,7 +423,7 @@ def run_evaluation(model: str, host: str, csv_path: str, n_permutations: int,
                     
                     # Optionally use sampling-based probability estimation
                     if use_sampling:
-                        sampled_probs = estimate_probabilities(
+                        sampled_probs, raw_counts, total_sampled = estimate_probabilities(
                             model=model,
                             prompt=prompt,
                             host=host,
@@ -419,6 +434,13 @@ def run_evaluation(model: str, host: str, csv_path: str, n_permutations: int,
                         )
                         # Use sampled probabilities instead
                         probabilities = sampled_probs
+                        
+                        # Print sampling distribution for visibility
+                        print(f"\n[Q{mcq.uid} Perm{perm_idx}] Sampling distribution ({total_sampled}/{sampling_n} valid):")
+                        print(f"  A: {raw_counts['A']:3d} ({probabilities['A']:.2%})  "
+                              f"B: {raw_counts['B']:3d} ({probabilities['B']:.2%})  "
+                              f"C: {raw_counts['C']:3d} ({probabilities['C']:.2%})  "
+                              f"D: {raw_counts['D']:3d} ({probabilities['D']:.2%})")
                     
                 except Exception as e:
                     print(f"Error processing {mcq.uid} perm {perm_idx}: {e}")
@@ -426,6 +448,8 @@ def run_evaluation(model: str, host: str, csv_path: str, n_permutations: int,
                     predicted_answer = ""
                     is_correct = False
                     probabilities = {"A": 0.25, "B": 0.25, "C": 0.25, "D": 0.25}
+                    raw_counts = {"A": 0, "B": 0, "C": 0, "D": 0}
+                    total_sampled = 0
                 
                 # Store result
                 results.append({
@@ -440,6 +464,12 @@ def run_evaluation(model: str, host: str, csv_path: str, n_permutations: int,
                     "prob_B": probabilities["B"],
                     "prob_C": probabilities["C"],
                     "prob_D": probabilities["D"],
+                    # Add raw sample counts if sampling was used
+                    "sample_count_A": raw_counts["A"] if use_sampling else None,
+                    "sample_count_B": raw_counts["B"] if use_sampling else None,
+                    "sample_count_C": raw_counts["C"] if use_sampling else None,
+                    "sample_count_D": raw_counts["D"] if use_sampling else None,
+                    "total_valid_samples": total_sampled if use_sampling else None,
                     "raw_response": response_text.replace('\n', ' ').replace('\r', ''),
                     "question": mcq.question,
                     "option_A": permuted_options["A"],

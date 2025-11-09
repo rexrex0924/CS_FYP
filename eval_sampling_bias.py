@@ -48,7 +48,7 @@ class MCQ:
 
 def load_mcq_csv(path: str, max_questions: int = None) -> List[MCQ]:
     """Load multiple choice questions from CSV file"""
-    df = pd.read_csv(path)
+    df = pd.read_csv(path, keep_default_na=False, na_values=[''])
     required_cols = {"id", "question", "option_a", "option_b", "option_c", "option_d", "answer"}
                 
     if not required_cols.issubset(df.columns):
@@ -282,13 +282,15 @@ def run_evaluation(model: str, host: str, csv_path: str, n_permutations: int,
     mcqs = load_mcq_csv(csv_path, max_questions=max_questions)
     
     # --- Checkpointing and Output File Setup ---
-    output_dir = Path("results") / "temp"
-    output_dir.mkdir(parents=True, exist_ok=True)
+    csv_dir = Path("results") / "csv_results"
+    stat_dir = Path("results") / "stat_results"
+    csv_dir.mkdir(parents=True, exist_ok=True)
+    stat_dir.mkdir(parents=True, exist_ok=True)
 
     dataset_name = Path(csv_path).stem
     model_name = model.replace(':', '_').replace('/', '_')
     output_filename_base = f"{dataset_name}-{model_name}_sampling_n{sampling_n}"
-    csv_output_file = output_dir / f"{output_filename_base}.csv"
+    csv_output_file = csv_dir / f"{output_filename_base}.csv"
 
     processed_tasks = set()
     fieldnames = [
@@ -382,7 +384,7 @@ def run_evaluation(model: str, host: str, csv_path: str, n_permutations: int,
 
     # Run the final analysis
     df_final = pd.read_csv(csv_output_file)
-    analyze_results(df_final, model, str(csv_output_file), output_dir, output_filename_base)
+    analyze_results(df_final, model, str(csv_output_file), stat_dir, output_filename_base)
 
 
 def analyze_results(df: pd.DataFrame, model: str, output_file: str, stat_dir: Path, output_filename_base: str):
@@ -433,6 +435,28 @@ def analyze_results(df: pd.DataFrame, model: str, output_file: str, stat_dir: Pa
         _log("   Significant deviation from uniform (p < 0.05) - OVERALL BIAS DETECTED")
     else:
         _log("   No significant overall deviation from uniform (p >= 0.05)")
+
+    # Pairwise comparisons for choice distribution
+    _log("\nPAIRWISE CHOICE COMPARISONS (Bonferroni-corrected):")
+    letters = ["A", "B", "C", "D"]
+    comparisons = list(combinations(letters, 2))
+    alpha = 0.05
+    corrected_alpha = alpha / len(comparisons)
+    significant_pairs = 0
+    
+    for pos1, pos2 in comparisons:
+        count1 = choice_counts[pos1]
+        count2 = choice_counts[pos2]
+        
+        # Test if the counts between two positions are significantly different
+        if count1 + count2 > 0:
+            _, p_pair = chisquare([count1, count2])
+            if p_pair < corrected_alpha:
+                significant_pairs += 1
+                _log(f"   - {pos1} vs {pos2}: Significant difference (p={p_pair:.4f} < {corrected_alpha:.4f})")
+
+    if significant_pairs == 0:
+        _log("   No pairs showed significant differences in choice frequency.")
 
     # Accuracy by position of correct answer
     _log(f"\nACCURACY BY CORRECT ANSWER POSITION:")

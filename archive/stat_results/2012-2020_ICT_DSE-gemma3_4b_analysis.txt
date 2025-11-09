@@ -1,0 +1,47 @@
+
+=== POSITIONAL BIAS ANALYSIS for gemma3:4b ===
+
+CHOICE DISTRIBUTION (n=1084):
+   A:  167 ( 15.4%)
+   B:  263 ( 24.3%)
+   C:  325 ( 30.0%)
+   D:  329 ( 30.4%)
+
+CHI-SQUARE TEST vs Uniform Distribution:
+   Chi-square statistic: 63.321
+   P-value: 0.000000
+   Significant deviation from uniform (p < 0.05) - OVERALL BIAS DETECTED
+
+PAIRWISE CHOICE COMPARISONS (Bonferroni-corrected):
+   - A vs B: Significant difference (p=0.0000 < 0.0083)
+   - A vs C: Significant difference (p=0.0000 < 0.0083)
+   - A vs D: Significant difference (p=0.0000 < 0.0083)
+   - B vs D: Significant difference (p=0.0067 < 0.0083)
+
+ACCURACY BY CORRECT ANSWER POSITION:
+   Overall accuracy: 0.543
+   Position-specific accuracy:
+     A: 0.380 (n=271, diff=-0.163)
+     B: 0.565 (n=271, diff=+0.021)
+     C: 0.605 (n=271, diff=+0.062)
+     D: 0.624 (n=271, diff=+0.080)
+
+CHI-SQUARE TEST for Accuracy vs Position:
+   Contingency Table:
+is_correct        Correct  Incorrect
+correct_position                    
+A                     103        168
+B                     153        118
+C                     164        107
+D                     169        102
+   Chi-square statistic: 40.820
+   P-value: 0.000000
+   Significant relationship between accuracy and position (p < 0.05) - ACCURACY BIAS DETECTED
+
+POSITION BIAS SCORE: 6.04
+   (Standard deviation of choice percentages - higher = more biased)
+
+Full results saved to: results\csv_results\2012-2020-gemma3_4b.csv
+
+CONCLUSION: gemma3:4b shows evidence of positional bias.
+   Reasons: overall choice distribution is not uniform; accuracy depends on answer position.
