@@ -1120,7 +1120,7 @@ def main_comprehensive_with_viz(csv_path: str, calibration_ratio: float = 0.10):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Run PriDe debiasing with comprehensive visualizations.")
     parser.add_argument("csv_path", help="Path to the input CSV with model probabilities.")
-    parser.add_argument("--calibration-ratio", type=float, default=0.10,
+    parser.add_argument("--calibration-ratio", type=float, default=0.15,
                        help="Ratio of data to use for calibration (default: 0.10 = 10%%)")
     args = parser.parse_args()
     results, best_alpha, viz_dir = main_comprehensive_with_viz(args.csv_path, args.calibration_ratio)

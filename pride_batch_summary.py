@@ -190,7 +190,7 @@ def compute_bias_metrics(df: pd.DataFrame, prediction_col: str = 'predicted_answ
     }
 
 
-def find_best_alpha(df: pd.DataFrame, calibration_ratio: float = 0.05) -> Tuple[float, pd.DataFrame, pd.DataFrame]:
+def find_best_alpha(df: pd.DataFrame, calibration_ratio: float = 0.1) -> Tuple[float, pd.DataFrame, pd.DataFrame]:
     """Find the best alpha value for debiasing."""
     alphas = [0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0]
     best_alpha = 1.0
@@ -224,17 +224,27 @@ def process_all_csvs(csv_dir: Path) -> Dict:
     
     csv_files = sorted(csv_dir.glob("*.csv"))
     
+    # Define known model prefixes to help with parsing
+    model_prefixes = ['mistral', 'gemma', 'llama', 'phi', 'qwen']
+
     for csv_file in csv_files:
-        filename = csv_file.stem
+        filename = csv_file.stem.replace('_sampling_n15', '').replace('_prob', '')
         
-        # Parse filename: dataset-model_sampling_n15.csv
-        parts = filename.replace('_sampling_n15', '').split('-')
-        if len(parts) < 2:
-            print(f"⚠️  Skipping {filename}: cannot parse dataset-model format")
+        dataset = None
+        model = None
+
+        # Find the model name by looking for a known prefix
+        for prefix in model_prefixes:
+            if prefix in filename:
+                # Split the filename at the first occurrence of the model prefix
+                parts = filename.split(prefix, 1)
+                dataset = parts[0].strip('-')
+                model = prefix + parts[1]
+                break
+        
+        if not dataset or not model:
+            print(f"⚠️  Skipping {csv_file.name}: cannot parse dataset and model name.")
             continue
-        
-        dataset = parts[0]
-        model = '-'.join(parts[1:])
         
         print(f"\n📊 Processing: {dataset} / {model}")
         print(f"   File: {csv_file.name}")
@@ -243,8 +253,8 @@ def process_all_csvs(csv_dir: Path) -> Dict:
             # Load data
             df = load_and_prepare_data(csv_file)
             
-            # Find best alpha and debias
-            best_alpha, test_df_debiased, test_df_original = find_best_alpha(df, calibration_ratio=0.05)
+            # Find best alpha and debias (Corrected to 0.1)
+            best_alpha, test_df_debiased, test_df_original = find_best_alpha(df, calibration_ratio=0.1)
             
             # Compute metrics
             baseline_metrics = compute_bias_metrics(test_df_original, 'predicted_answer')
