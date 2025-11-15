@@ -1,0 +1,41 @@
+
+=== POSITIONAL BIAS ANALYSIS for mistral-small3.2:24b ===
+
+CHOICE DISTRIBUTION (n=1084):
+   A:  239 ( 22.0%)
+   B:  280 ( 25.8%)
+   C:  293 ( 27.0%)
+   D:  272 ( 25.1%)
+
+CHI-SQUARE TEST vs Uniform Distribution:
+   Chi-square statistic: 5.867
+   P-value: 0.118255
+   No significant overall deviation from uniform (p >= 0.05)
+
+PAIRWISE CHOICE COMPARISONS (Bonferroni-corrected):
+   No pairs showed significant differences in choice frequency.
+
+ACCURACY BY CORRECT ANSWER POSITION:
+   Overall accuracy: 0.856
+   Position-specific accuracy:
+     A: 0.801 (n=271, diff=-0.055)
+     B: 0.878 (n=271, diff=+0.022)
+     C: 0.897 (n=271, diff=+0.041)
+     D: 0.849 (n=271, diff=-0.007)
+
+CHI-SQUARE TEST for Accuracy vs Position:
+   Contingency Table:
+is_correct        Correct  Incorrect
+correct_position                    
+A                     217         54
+B                     238         33
+C                     243         28
+D                     230         41
+   Chi-square statistic: 11.561
+   P-value: 0.009048
+   Significant relationship between accuracy and position (p < 0.05) - ACCURACY BIAS DETECTED
+
+POSITION BIAS SCORE: 1.84
+   (Standard deviation of choice percentages - higher = more biased)
+
+Full results saved to: results\csv_results\2012-2020_ICT_DSE-mistral-small3.2_24b_sampling_n15.csv

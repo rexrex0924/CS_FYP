@@ -1,0 +1,156 @@
+================================================================================
+COMPREHENSIVE POSITIONAL BIAS ANALYSIS
+================================================================================
+Model: gemma3:1b
+Dataset: 2012-2020_ICT_DSE-gemma3_1b_sampling_n15
+Total Evaluations: 1084
+================================================================================
+
+DATA QUALITY:
+  Valid responses: 1084 (100.0%)
+  Failed responses: 0 (0.0%)
+
+================================================================================
+1. CHOICE DISTRIBUTION (Predicted Answers)
+================================================================================
+
+Raw Counts and Percentages (n=1084):
+Choice     Count      Percentage      Expected (25%)      
+------------------------------------------------------------
+A          286         26.38%           271.0 (Δ=+15.0)
+B          67           6.18%           271.0 (Δ=-204.0)
+C          650         59.96%           271.0 (Δ=+379.0)
+D          81           7.47%           271.0 (Δ=-190.0)
+
+================================================================================
+2. CHI-SQUARE TEST: Choice Distribution vs Uniform (25/25/25/25)
+================================================================================
+
+Observed Frequencies: A=286, B=67, C=650, D=81
+Expected Frequencies: A=271.0, B=271.0, C=271.0, D=271.0
+
+Chi-square Statistic (χ²): 817.6458
+Degrees of Freedom: 3
+P-value: 0.000000
+
+Interpretation:
+  *** Highly significant deviation from uniform (p < 0.001)
+  Effect Size (Cramér's V): 0.5014
+
+================================================================================
+3. PAIRWISE CHOICE COMPARISONS (Bonferroni-corrected)
+================================================================================
+
+Total Comparisons: 6
+Significance Level (α): 0.05
+Bonferroni-corrected α: 0.0083
+
+Comparison      Count 1    Count 2    χ² Statistic    P-value      Significant?   
+-------------------------------------------------------------------------------------
+A vs B          286        67         135.8669        0.000000     YES ***        
+A vs C          286        650        141.5556        0.000000     YES ***        
+A vs D          286        81         114.5095        0.000000     YES ***        
+B vs C          67         650        474.0432        0.000000     YES ***        
+B vs D          67         81         1.3243          0.249817     No             
+C vs D          650        81         442.9015        0.000000     YES ***        
+
+Summary: 5/6 pairs show significant differences
+
+================================================================================
+4. ACCURACY BY CORRECT ANSWER POSITION
+================================================================================
+
+Overall Accuracy: 0.3386 (33.86%)
+
+Position   Total      Correct    Accuracy     Deviation      
+-----------------------------------------------------------------
+A          271        94         0.3469       +0.0083
+B          271        30         0.1107       -0.2279
+C          271        199        0.7343       +0.3958
+D          271        44         0.1624       -0.1762
+
+================================================================================
+5. CHI-SQUARE TEST: Accuracy vs Position (Independence)
+================================================================================
+
+Contingency Table:
+is_correct        Correct  Incorrect
+correct_position                    
+A                      94        177
+B                      30        241
+C                     199         72
+D                      44        227
+
+Expected Frequencies (under independence):
+   Correct  Incorrect
+A    91.75     179.25
+B    91.75     179.25
+C    91.75     179.25
+D    91.75     179.25
+
+Chi-square Statistic (χ²): 290.0249
+Degrees of Freedom: 3
+P-value: 0.000000
+
+Interpretation:
+  *** Highly significant relationship (p < 0.001)
+      Accuracy STRONGLY depends on answer position
+
+Effect Size (Cramér's V): 0.5173
+
+================================================================================
+6. POSITION BIAS SCORE
+================================================================================
+
+Choice Percentages: A=26.38%, B=6.18%, C=59.96%, D=7.47%
+Expected (Uniform): 25.00%, 25.00%, 25.00%, 25.00%
+
+Position Bias Score (Std Dev): 21.7124
+
+Interpretation:
+  High bias (score >= 10)
+
+================================================================================
+7. RECALL BY POSITION (Recall Standard Deviation)
+================================================================================
+
+Position   Questions    Recalled     Recall Rate    
+-------------------------------------------------------
+A          271          94           0.3469          (34.69%)
+B          271          30           0.1107          (11.07%)
+C          271          199          0.7343          (73.43%)
+D          271          44           0.1624          (16.24%)
+
+Recall Statistics:
+  Mean Recall: 33.86%
+  Recall Std Dev (RStd): 24.48%
+
+Interpretation:
+  Lower RStd indicates more balanced recall across positions
+  Higher RStd indicates position-dependent accuracy
+
+================================================================================
+8. SAMPLE SIZE AND ESTIMATION QUALITY
+================================================================================
+
+Samples per evaluation:
+  Mean: 15.00
+  Median: 15
+  Min: 15
+  Max: 15
+  Std Dev: 0.00
+
+Estimated Margin of Error (95% CI): ±21.91%
+  (Based on average n=15.0 samples, assuming p=0.25)
+
+================================================================================
+SUMMARY
+================================================================================
+
+✓ Overall Accuracy: 0.3386
+✓ Position Bias Score: 21.7124
+✓ Recall Std Dev: 24.48%
+✓ Chi² (Distribution): 817.6458 (p=0.000000)
+✓ Chi² (Accuracy vs Position): 290.0249 (p=0.000000)
+
+================================================================================

@@ -1,0 +1,46 @@
+
+=== POSITIONAL BIAS ANALYSIS for gemma3:1b ===
+
+CHOICE DISTRIBUTION (n=804):
+   A:  118 ( 14.7%)
+   B:   64 (  8.0%)
+   C:  446 ( 55.5%)
+   D:  176 ( 21.9%)
+
+CHI-SQUARE TEST vs Uniform Distribution:
+   Chi-square statistic: 429.393
+   P-value: 0.000000
+   Significant deviation from uniform (p < 0.05) - OVERALL BIAS DETECTED
+
+PAIRWISE CHOICE COMPARISONS (Bonferroni-corrected):
+   - A vs B: Significant difference (p=0.0001 < 0.0083)
+   - A vs C: Significant difference (p=0.0000 < 0.0083)
+   - A vs D: Significant difference (p=0.0007 < 0.0083)
+   - B vs C: Significant difference (p=0.0000 < 0.0083)
+   - B vs D: Significant difference (p=0.0000 < 0.0083)
+   - C vs D: Significant difference (p=0.0000 < 0.0083)
+
+ACCURACY BY CORRECT ANSWER POSITION:
+   Overall accuracy: 0.465
+   Position-specific accuracy:
+     A: 0.313 (n=201, diff=-0.152)
+     B: 0.199 (n=201, diff=-0.266)
+     C: 0.876 (n=201, diff=+0.410)
+     D: 0.473 (n=201, diff=+0.007)
+
+CHI-SQUARE TEST for Accuracy vs Position:
+   Contingency Table:
+is_correct        Correct  Incorrect
+correct_position                    
+A                      63        138
+B                      40        161
+C                     176         25
+D                      95        106
+   Chi-square statistic: 211.994
+   P-value: 0.000000
+   Significant relationship between accuracy and position (p < 0.05) - ACCURACY BIAS DETECTED
+
+POSITION BIAS SCORE: 18.27
+   (Standard deviation of choice percentages - higher = more biased)
+
+Full results saved to: results\csv_results\sociology-gemma3_1b_sampling_n15.csv

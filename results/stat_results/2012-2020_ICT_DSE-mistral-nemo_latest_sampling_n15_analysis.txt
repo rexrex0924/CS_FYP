@@ -1,0 +1,43 @@
+
+=== POSITIONAL BIAS ANALYSIS for mistral-nemo:latest ===
+
+CHOICE DISTRIBUTION (n=1084):
+   A:  339 ( 31.3%)
+   B:  284 ( 26.2%)
+   C:  243 ( 22.4%)
+   D:  218 ( 20.1%)
+
+CHI-SQUARE TEST vs Uniform Distribution:
+   Chi-square statistic: 30.945
+   P-value: 0.000001
+   Significant deviation from uniform (p < 0.05) - OVERALL BIAS DETECTED
+
+PAIRWISE CHOICE COMPARISONS (Bonferroni-corrected):
+   - A vs C: Significant difference (p=0.0001 < 0.0083)
+   - A vs D: Significant difference (p=0.0000 < 0.0083)
+   - B vs D: Significant difference (p=0.0032 < 0.0083)
+
+ACCURACY BY CORRECT ANSWER POSITION:
+   Overall accuracy: 0.688
+   Position-specific accuracy:
+     A: 0.771 (n=271, diff=+0.083)
+     B: 0.705 (n=271, diff=+0.017)
+     C: 0.635 (n=271, diff=-0.054)
+     D: 0.642 (n=271, diff=-0.046)
+
+CHI-SQUARE TEST for Accuracy vs Position:
+   Contingency Table:
+is_correct        Correct  Incorrect
+correct_position                    
+A                     209         62
+B                     191         80
+C                     172         99
+D                     174         97
+   Chi-square statistic: 15.356
+   P-value: 0.001536
+   Significant relationship between accuracy and position (p < 0.05) - ACCURACY BIAS DETECTED
+
+POSITION BIAS SCORE: 4.22
+   (Standard deviation of choice percentages - higher = more biased)
+
+Full results saved to: results\csv_results\2012-2020_ICT_DSE-mistral-nemo_latest_sampling_n15.csv

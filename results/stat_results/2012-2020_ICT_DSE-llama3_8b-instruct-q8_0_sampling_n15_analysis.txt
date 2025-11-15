@@ -1,0 +1,41 @@
+
+=== POSITIONAL BIAS ANALYSIS for llama3:8b-instruct-q8_0 ===
+
+CHOICE DISTRIBUTION (n=1084):
+   A:  265 ( 24.4%)
+   B:  307 ( 28.3%)
+   C:  259 ( 23.9%)
+   D:  253 ( 23.3%)
+
+CHI-SQUARE TEST vs Uniform Distribution:
+   Chi-square statistic: 6.642
+   P-value: 0.084225
+   No significant overall deviation from uniform (p >= 0.05)
+
+PAIRWISE CHOICE COMPARISONS (Bonferroni-corrected):
+   No pairs showed significant differences in choice frequency.
+
+ACCURACY BY CORRECT ANSWER POSITION:
+   Overall accuracy: 0.714
+   Position-specific accuracy:
+     A: 0.686 (n=271, diff=-0.028)
+     B: 0.768 (n=271, diff=+0.054)
+     C: 0.697 (n=271, diff=-0.017)
+     D: 0.705 (n=271, diff=-0.009)
+
+CHI-SQUARE TEST for Accuracy vs Position:
+   Contingency Table:
+is_correct        Correct  Incorrect
+correct_position                    
+A                     186         85
+B                     208         63
+C                     189         82
+D                     191         80
+   Chi-square statistic: 5.295
+   P-value: 0.151436
+   No significant relationship between accuracy and position (p >= 0.05)
+
+POSITION BIAS SCORE: 1.96
+   (Standard deviation of choice percentages - higher = more biased)
+
+Full results saved to: results\csv_results\2012-2020_ICT_DSE-llama3_8b-instruct-q8_0_sampling_n15.csv

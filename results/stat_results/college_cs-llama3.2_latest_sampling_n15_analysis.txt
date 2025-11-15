@@ -1,0 +1,44 @@
+
+=== POSITIONAL BIAS ANALYSIS for llama3.2:latest ===
+
+CHOICE DISTRIBUTION (n=400):
+   A:  110 ( 27.5%)
+   B:   96 ( 24.0%)
+   C:  139 ( 34.8%)
+   D:   55 ( 13.8%)
+
+CHI-SQUARE TEST vs Uniform Distribution:
+   Chi-square statistic: 36.620
+   P-value: 0.000000
+   Significant deviation from uniform (p < 0.05) - OVERALL BIAS DETECTED
+
+PAIRWISE CHOICE COMPARISONS (Bonferroni-corrected):
+   - A vs D: Significant difference (p=0.0000 < 0.0083)
+   - B vs C: Significant difference (p=0.0050 < 0.0083)
+   - B vs D: Significant difference (p=0.0008 < 0.0083)
+   - C vs D: Significant difference (p=0.0000 < 0.0083)
+
+ACCURACY BY CORRECT ANSWER POSITION:
+   Overall accuracy: 0.388
+   Position-specific accuracy:
+     A: 0.390 (n=100, diff=+0.003)
+     B: 0.380 (n=100, diff=-0.008)
+     C: 0.510 (n=100, diff=+0.122)
+     D: 0.270 (n=100, diff=-0.117)
+
+CHI-SQUARE TEST for Accuracy vs Position:
+   Contingency Table:
+is_correct        Correct  Incorrect
+correct_position                    
+A                      39         61
+B                      38         62
+C                      51         49
+D                      27         73
+   Chi-square statistic: 12.166
+   P-value: 0.006836
+   Significant relationship between accuracy and position (p < 0.05) - ACCURACY BIAS DETECTED
+
+POSITION BIAS SCORE: 7.56
+   (Standard deviation of choice percentages - higher = more biased)
+
+Full results saved to: results\csv_results\college_cs-llama3.2_latest_sampling_n15.csv

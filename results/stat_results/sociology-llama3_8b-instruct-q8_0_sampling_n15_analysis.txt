@@ -1,0 +1,43 @@
+
+=== POSITIONAL BIAS ANALYSIS for llama3:8b-instruct-q8_0 ===
+
+CHOICE DISTRIBUTION (n=804):
+   A:  190 ( 23.6%)
+   B:  252 ( 31.3%)
+   C:  184 ( 22.9%)
+   D:  178 ( 22.1%)
+
+CHI-SQUARE TEST vs Uniform Distribution:
+   Chi-square statistic: 17.612
+   P-value: 0.000529
+   Significant deviation from uniform (p < 0.05) - OVERALL BIAS DETECTED
+
+PAIRWISE CHOICE COMPARISONS (Bonferroni-corrected):
+   - A vs B: Significant difference (p=0.0032 < 0.0083)
+   - B vs C: Significant difference (p=0.0011 < 0.0083)
+   - B vs D: Significant difference (p=0.0004 < 0.0083)
+
+ACCURACY BY CORRECT ANSWER POSITION:
+   Overall accuracy: 0.780
+   Position-specific accuracy:
+     A: 0.761 (n=201, diff=-0.019)
+     B: 0.866 (n=201, diff=+0.086)
+     C: 0.756 (n=201, diff=-0.024)
+     D: 0.736 (n=201, diff=-0.044)
+
+CHI-SQUARE TEST for Accuracy vs Position:
+   Contingency Table:
+is_correct        Correct  Incorrect
+correct_position                    
+A                     153         48
+B                     174         27
+C                     152         49
+D                     148         53
+   Chi-square statistic: 11.903
+   P-value: 0.007723
+   Significant relationship between accuracy and position (p < 0.05) - ACCURACY BIAS DETECTED
+
+POSITION BIAS SCORE: 3.70
+   (Standard deviation of choice percentages - higher = more biased)
+
+Full results saved to: results\csv_results\sociology-llama3_8b-instruct-q8_0_sampling_n15.csv
