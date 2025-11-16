@@ -1,25 +1,23 @@
 """
-Local LLM Positional Bias Evaluation (Sampling-Based)
-Evaluates positional bias by empirically estimating probabilities via multiple samples,
+Local LLM Positional Bias Data Collection (Sampling-Based)
+Collects raw evaluation data by empirically estimating probabilities via multiple samples,
 as described for models like GPT-3.5-turbo that do not return token probabilities.
+
+This script focuses on data collection only. Run batch_stat_analysis.py afterwards 
+to perform comprehensive statistical analysis on the collected CSV data.
 """
 
 import argparse
 import csv
-import json
 import re
 import time
-import os
-from itertools import combinations
-from collections import Counter, defaultdict
+from collections import Counter
 from dataclasses import dataclass
 from typing import List, Dict, Any, Tuple
 import concurrent.futures
 from pathlib import Path
 
-import numpy as np
 import pandas as pd
-from scipy.stats import chisquare, chi2_contingency
 from tqdm import tqdm
 import requests
 
@@ -269,7 +267,11 @@ def sample_and_estimate_distribution(model: str, prompt: str, host: str, n_sampl
 def run_evaluation(model: str, host: str, csv_path: str, n_permutations: int,
                   seed: int, max_questions: int,
                   sampling_n: int, sampling_temp: float, num_workers: int):
-    """Run the full positional bias evaluation using sampling."""
+    """Run data collection for positional bias evaluation using sampling.
+    
+    Collects raw evaluation data and saves to CSV. Statistical analysis 
+    should be performed separately using batch_stat_analysis.py.
+    """
     
     print("\n=== Starting Positional Bias Evaluation (Sampling-Based) ===")
     print(f"Model: {model}")
@@ -283,9 +285,7 @@ def run_evaluation(model: str, host: str, csv_path: str, n_permutations: int,
     
     # --- Checkpointing and Output File Setup ---
     csv_dir = Path("results") / "csv_results"
-    stat_dir = Path("results") / "stat_results"
     csv_dir.mkdir(parents=True, exist_ok=True)
-    stat_dir.mkdir(parents=True, exist_ok=True)
 
     dataset_name = Path(csv_path).stem
     model_name = model.replace(':', '_').replace('/', '_')
@@ -381,140 +381,7 @@ def run_evaluation(model: str, host: str, csv_path: str, n_permutations: int,
                     pbar.update(1)
 
     print(f"\nEvaluation complete. Results saved to: {csv_output_file}")
-
-    # Run the final analysis
-    df_final = pd.read_csv(csv_output_file)
-    analyze_results(df_final, model, str(csv_output_file), stat_dir, output_filename_base)
-
-
-def analyze_results(df: pd.DataFrame, model: str, output_file: str, stat_dir: Path, output_filename_base: str):
-    """Analyze and print results of positional bias evaluation"""
-    
-    analysis_file_path = stat_dir / f"{output_filename_base}_analysis.txt"
-    report_lines = []
-
-    def _log(message):
-        print(message)
-        report_lines.append(str(message))
-
-    _log(f"\n=== POSITIONAL BIAS ANALYSIS for {model} ===")
-    
-    # Filter out failed responses
-    valid_responses = df[df["predicted_answer"].isin(["A", "B", "C", "D"])]
-    failed_responses = len(df) - len(valid_responses)
-    
-    if failed_responses > 0:
-        _log(f"WARNING: {failed_responses}/{len(df)} responses failed to parse")
-    
-    if len(valid_responses) == 0:
-        _log("ERROR: No valid responses to analyze")
-        with open(analysis_file_path, "w", encoding="utf-8") as f:
-            f.write("\n".join(report_lines))
-        print(f"\nAnalysis report saved to: {analysis_file_path}")
-        return
-    
-    # Overall choice distribution
-    choice_counts = valid_responses["predicted_answer"].value_counts().reindex(["A", "B", "C", "D"], fill_value=0)
-    total_valid = len(valid_responses)
-    
-    _log(f"\nCHOICE DISTRIBUTION (n={total_valid}):")
-    for letter in ["A", "B", "C", "D"]:
-        count = choice_counts[letter]
-        percentage = (count / total_valid * 100) if total_valid > 0 else 0
-        _log(f"   {letter}: {count:4d} ({percentage:5.1f}%)")
-    
-    # Chi-square test against uniform distribution
-    expected_per_choice = total_valid / 4
-    expected = [expected_per_choice] * 4
-    chi2_stat, p_value = chisquare(choice_counts.values, f_exp=expected)
-    
-    _log(f"\nCHI-SQUARE TEST vs Uniform Distribution:")
-    _log(f"   Chi-square statistic: {chi2_stat:.3f}")
-    _log(f"   P-value: {p_value:.6f}")
-    if p_value < 0.05:
-        _log("   Significant deviation from uniform (p < 0.05) - OVERALL BIAS DETECTED")
-    else:
-        _log("   No significant overall deviation from uniform (p >= 0.05)")
-
-    # Pairwise comparisons for choice distribution
-    _log("\nPAIRWISE CHOICE COMPARISONS (Bonferroni-corrected):")
-    letters = ["A", "B", "C", "D"]
-    comparisons = list(combinations(letters, 2))
-    alpha = 0.05
-    corrected_alpha = alpha / len(comparisons)
-    significant_pairs = 0
-    
-    for pos1, pos2 in comparisons:
-        count1 = choice_counts[pos1]
-        count2 = choice_counts[pos2]
-        
-        # Test if the counts between two positions are significantly different
-        if count1 + count2 > 0:
-            _, p_pair = chisquare([count1, count2])
-            if p_pair < corrected_alpha:
-                significant_pairs += 1
-                _log(f"   - {pos1} vs {pos2}: Significant difference (p={p_pair:.4f} < {corrected_alpha:.4f})")
-
-    if significant_pairs == 0:
-        _log("   No pairs showed significant differences in choice frequency.")
-
-    # Accuracy by position of correct answer
-    _log(f"\nACCURACY BY CORRECT ANSWER POSITION:")
-    accuracy_by_position = valid_responses.groupby("correct_position")["is_correct"].agg(['mean', 'count'])
-    
-    overall_accuracy = valid_responses["is_correct"].mean()
-    _log(f"   Overall accuracy: {overall_accuracy:.3f}")
-    _log(f"   Position-specific accuracy:")
-    
-    for letter in ["A", "B", "C", "D"]:
-        if letter in accuracy_by_position.index:
-            acc = accuracy_by_position.loc[letter, "mean"]
-            count = accuracy_by_position.loc[letter, "count"]
-            diff = acc - overall_accuracy
-            _log(f"     {letter}: {acc:.3f} (n={count}, diff={diff:+.3f})")
-        else:
-            _log(f"     {letter}: N/A (no questions)")
-
-    # Chi-square test for independence of accuracy and position
-    p_acc = 1.0
-    _log("\nCHI-SQUARE TEST for Accuracy vs Position:")
-    try:
-        contingency_table = pd.crosstab(valid_responses['correct_position'], valid_responses['is_correct'])
-        contingency_table = contingency_table.reindex(["A", "B", "C", "D"], fill_value=0)
-        
-        if 0 not in contingency_table.columns: contingency_table[0] = 0
-        if 1 not in contingency_table.columns: contingency_table[1] = 0
-        
-        contingency_table = contingency_table.rename(columns={0: 'Incorrect', 1: 'Correct'})[['Correct', 'Incorrect']]
-        
-        if contingency_table.sum().sum() > 0 and not (contingency_table.sum(axis=0) == 0).any() and not (contingency_table.sum(axis=1) == 0).any():
-            chi2_acc, p_acc, _, _ = chi2_contingency(contingency_table)
-            _log(f"   Contingency Table:\n{contingency_table.to_string(header=True)}")
-            _log(f"   Chi-square statistic: {chi2_acc:.3f}")
-            _log(f"   P-value: {p_acc:.6f}")
-            if p_acc < 0.05:
-                _log("   Significant relationship between accuracy and position (p < 0.05) - ACCURACY BIAS DETECTED")
-            else:
-                _log("   No significant relationship between accuracy and position (p >= 0.05)")
-        else:
-            _log("   Skipped: Not enough data diversity for a valid test.")
-            _log(f"   Contingency Table:\n{contingency_table.to_string(header=True)}")
-            
-    except Exception as e:
-        _log(f"   Could not perform chi-square test for accuracy: {e}")
-    
-    # Position bias score
-    choice_percentages = choice_counts.values / total_valid * 100
-    position_bias_score = np.std(choice_percentages)
-    _log(f"\nPOSITION BIAS SCORE: {position_bias_score:.2f}")
-    _log(f"   (Standard deviation of choice percentages - higher = more biased)")
-    
-    _log(f"\nFull results saved to: {output_file}")
-    
-    with open(analysis_file_path, "w", encoding="utf-8") as f:
-        f.write("\n".join(report_lines))
-    
-    print(f"\nAnalysis report saved to: {analysis_file_path}")
+    print(f"Run batch_stat_analysis.py to perform statistical analysis on the collected data.")
 
 
 def main():
