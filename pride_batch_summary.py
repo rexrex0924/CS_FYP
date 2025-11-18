@@ -20,6 +20,30 @@ plt.style.use('seaborn-v0_8-darkgrid')
 sns.set_palette("husl")
 
 
+# Define custom model ordering
+MODEL_ORDER = [
+    'gemma3_1b',
+    'gemma3_4b',
+    'gemma3_12b',
+    'llama3.2_latest',
+    'llama3_8b-instruct-q6_K',
+    'llama3_8b-instruct-q8_0',
+    'mistral_latest',
+    'mistral-nemo_latest',
+    'mistral-small3.2_24b'
+]
+
+def sort_models_custom(models):
+    """Sort models according to the custom order defined in MODEL_ORDER."""
+    def get_sort_key(model):
+        try:
+            return MODEL_ORDER.index(model)
+        except ValueError:
+            # If model not in list, put it at the end
+            return len(MODEL_ORDER)
+    return sorted(models, key=get_sort_key)
+
+
 class PriDeDebiasing:
     """PriDe: Debiasing with Prior estimation for multiple choice questions."""
 
@@ -288,10 +312,8 @@ def plot_dataset_accuracy_comparison(dataset: str, models_data: Dict, output_pat
     """Compare accuracy across all models for a dataset."""
     fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(16, 6))
     
-    # Sort models by baseline accuracy (descending)
-    models = sorted(models_data.keys(), 
-                   key=lambda m: models_data[m]['baseline']['overall_accuracy'], 
-                   reverse=True)
+    # Sort models using custom order
+    models = sort_models_custom(models_data.keys())
     baseline_accs = [models_data[m]['baseline']['overall_accuracy'] for m in models]
     debiased_accs = [models_data[m]['debiased']['overall_accuracy'] for m in models]
     improvements = [d - b for b, d in zip(baseline_accs, debiased_accs)]
@@ -305,7 +327,7 @@ def plot_dataset_accuracy_comparison(dataset: str, models_data: Dict, output_pat
     
     ax1.set_xlabel('Model', fontsize=12, fontweight='bold')
     ax1.set_ylabel('Accuracy', fontsize=12, fontweight='bold')
-    ax1.set_title(f'{dataset}: Accuracy Comparison (Sorted by Baseline)', fontsize=14, fontweight='bold')
+    ax1.set_title(f'{dataset}: Accuracy Comparison', fontsize=14, fontweight='bold')
     ax1.set_xticks(x)
     ax1.set_xticklabels(models, rotation=45, ha='right', fontsize=8)
     ax1.legend()
@@ -321,11 +343,8 @@ def plot_dataset_accuracy_comparison(dataset: str, models_data: Dict, output_pat
         ax1.text(bar.get_x() + bar.get_width()/2., height,
                 f'{height*100:.1f}%', ha='center', va='bottom', fontsize=7, fontweight='bold')
     
-    # Right: Improvements (sorted by improvement value)
-    models_by_improvement = sorted(models_data.keys(), 
-                                   key=lambda m: models_data[m]['debiased']['overall_accuracy'] - 
-                                                models_data[m]['baseline']['overall_accuracy'], 
-                                   reverse=True)
+    # Right: Improvements (custom order)
+    models_by_improvement = sort_models_custom(models_data.keys())
     improvements_sorted = [models_data[m]['debiased']['overall_accuracy'] - 
                           models_data[m]['baseline']['overall_accuracy'] 
                           for m in models_by_improvement]
@@ -335,7 +354,7 @@ def plot_dataset_accuracy_comparison(dataset: str, models_data: Dict, output_pat
     ax2.axhline(y=0, color='black', linestyle='-', linewidth=1)
     ax2.set_xlabel('Model', fontsize=12, fontweight='bold')
     ax2.set_ylabel('Accuracy Improvement (percentage points)', fontsize=12, fontweight='bold')
-    ax2.set_title(f'{dataset}: Accuracy Improvement (Sorted)', fontsize=14, fontweight='bold')
+    ax2.set_title(f'{dataset}: Accuracy Improvement', fontsize=14, fontweight='bold')
     ax2.set_xticks(range(len(models_by_improvement)))
     ax2.set_xticklabels(models_by_improvement, rotation=45, ha='right', fontsize=8)
     ax2.grid(axis='y', alpha=0.3)
@@ -358,9 +377,8 @@ def plot_dataset_bias_comparison(dataset: str, models_data: Dict, output_path: P
     
     width = 0.35
     
-    # Position Bias Score (sorted by baseline, ascending - lower is better)
-    models_bias = sorted(models_data.keys(), 
-                        key=lambda m: models_data[m]['baseline']['position_bias_score'])
+    # Position Bias Score (custom order)
+    models_bias = sort_models_custom(models_data.keys())
     baseline_bias = [models_data[m]['baseline']['position_bias_score'] for m in models_bias]
     debiased_bias = [models_data[m]['debiased']['position_bias_score'] for m in models_bias]
     
@@ -385,9 +403,8 @@ def plot_dataset_bias_comparison(dataset: str, models_data: Dict, output_path: P
         ax1.text(bar.get_x() + bar.get_width()/2., height,
                 f'{height:.2f}', ha='center', va='bottom', fontsize=7, fontweight='bold')
     
-    # Recall Std (sorted by baseline, ascending - lower is better)
-    models_rstd = sorted(models_data.keys(), 
-                        key=lambda m: models_data[m]['baseline']['recall_std'])
+    # Recall Std (custom order)
+    models_rstd = sort_models_custom(models_data.keys())
     baseline_rstd = [models_data[m]['baseline']['recall_std'] for m in models_rstd]
     debiased_rstd = [models_data[m]['debiased']['recall_std'] for m in models_rstd]
     
@@ -412,9 +429,8 @@ def plot_dataset_bias_comparison(dataset: str, models_data: Dict, output_path: P
         ax2.text(bar.get_x() + bar.get_width()/2., height,
                 f'{height:.2f}', ha='center', va='bottom', fontsize=7, fontweight='bold')
     
-    # Chi-square statistic (sorted by baseline, ascending - lower is better)
-    models_chi2 = sorted(models_data.keys(), 
-                        key=lambda m: models_data[m]['baseline']['chi2_stat'])
+    # Chi-square statistic (custom order)
+    models_chi2 = sort_models_custom(models_data.keys())
     baseline_chi2 = [models_data[m]['baseline']['chi2_stat'] for m in models_chi2]
     debiased_chi2 = [models_data[m]['debiased']['chi2_stat'] for m in models_chi2]
     
@@ -439,10 +455,8 @@ def plot_dataset_bias_comparison(dataset: str, models_data: Dict, output_path: P
         ax3.text(bar.get_x() + bar.get_width()/2., height,
                 f'{height:.1f}', ha='center', va='bottom', fontsize=7, fontweight='bold')
     
-    # Chi-square p-value (sorted by baseline, descending - higher is better)
-    models_pval = sorted(models_data.keys(), 
-                        key=lambda m: models_data[m]['baseline']['chi2_pvalue'],
-                        reverse=True)
+    # Chi-square p-value (custom order)
+    models_pval = sort_models_custom(models_data.keys())
     baseline_pval = [models_data[m]['baseline']['chi2_pvalue'] for m in models_pval]
     debiased_pval = [models_data[m]['debiased']['chi2_pvalue'] for m in models_pval]
     
@@ -475,9 +489,8 @@ def plot_dataset_bias_comparison(dataset: str, models_data: Dict, output_path: P
 
 def plot_dataset_distribution_comparison(dataset: str, models_data: Dict, output_path: Path):
     """Compare choice distributions across all models for a dataset."""
-    # Sort models by baseline position bias score (ascending - lower is better)
-    models = sorted(models_data.keys(), 
-                   key=lambda m: models_data[m]['baseline']['position_bias_score'])
+    # Sort models using custom order
+    models = sort_models_custom(models_data.keys())
     n_models = len(models)
     
     fig, axes = plt.subplots(n_models, 2, figsize=(14, 4 * n_models))
@@ -528,7 +541,7 @@ def plot_dataset_distribution_comparison(dataset: str, models_data: Dict, output
             ax2.text(bar.get_x() + bar.get_width()/2., height,
                     f'{height:.1f}%', ha='center', va='bottom', fontsize=8, fontweight='bold')
     
-    fig.suptitle(f'{dataset}: Choice Distribution Comparison (Sorted by Bias Score)', 
+    fig.suptitle(f'{dataset}: Choice Distribution Comparison', 
                 fontsize=16, fontweight='bold', y=0.995)
     plt.tight_layout()
     plt.savefig(output_path, dpi=300, bbox_inches='tight')
@@ -537,10 +550,8 @@ def plot_dataset_distribution_comparison(dataset: str, models_data: Dict, output
 
 def plot_dataset_accuracy_by_position(dataset: str, models_data: Dict, output_path: Path):
     """Compare accuracy by position across all models for a dataset."""
-    # Sort models by baseline overall accuracy (descending - higher is better)
-    models = sorted(models_data.keys(), 
-                   key=lambda m: models_data[m]['baseline']['overall_accuracy'],
-                   reverse=True)
+    # Sort models using custom order
+    models = sort_models_custom(models_data.keys())
     n_models = len(models)
     
     fig, axes = plt.subplots(n_models, 1, figsize=(14, 5 * n_models))
@@ -585,7 +596,7 @@ def plot_dataset_accuracy_by_position(dataset: str, models_data: Dict, output_pa
             ax.text(bar2.get_x() + bar2.get_width()/2., height2,
                    f'{height2*100:.1f}%', ha='center', va='bottom', fontsize=8, fontweight='bold')
     
-    fig.suptitle(f'{dataset}: Accuracy by Position (Sorted by Baseline Accuracy)',
+    fig.suptitle(f'{dataset}: Accuracy by Position',
                 fontsize=16, fontweight='bold', y=0.995)
     plt.tight_layout()
     plt.savefig(output_path, dpi=300, bbox_inches='tight')
