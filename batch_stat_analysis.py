@@ -106,11 +106,55 @@ def analyze_csv(csv_path: Path) -> dict:
     for pos in ['A', 'B', 'C', 'D']:
         accuracy_by_position.setdefault(pos, 0.0)
 
+    # --- Consistency Score ---
+    # Calculate the percentage of questions where the model chooses the same *content* across all permutations.
+    # We map the predicted letter back to the original option index using the permutation logic.
+    def get_original_choice(row):
+        try:
+            perm_idx = int(row['permutation_idx'])
+            pred = str(row['predicted_answer']).strip().upper()
+            if pred not in ['A', 'B', 'C', 'D']:
+                return None
+            
+            letter_map = {'A': 0, 'B': 1, 'C': 2, 'D': 3}
+            reverse_map = {0: 'A', 1: 'B', 2: 'C', 3: 'D'}
+            
+            pred_idx = letter_map[pred]
+            shift = perm_idx % 4
+            
+            # cyclic_items[i] corresponds to original_items[(shift + i) % 4]
+            # So the predicted option at position i is the original option at (shift + i) % 4
+            orig_idx = (shift + pred_idx) % 4
+            return reverse_map[orig_idx]
+        except (ValueError, KeyError, TypeError):
+            return None
+
+    # Use question_id if available, otherwise try id
+    id_col = 'question_id' if 'question_id' in df.columns else 'id'
+    
+    if id_col in df.columns and 'permutation_idx' in df.columns:
+        df['original_choice'] = df.apply(get_original_choice, axis=1)
+        
+        # Group by question ID and count unique original choices
+        # We filter out rows where original_choice is None
+        valid_consistency_df = df.dropna(subset=['original_choice'])
+        
+        if not valid_consistency_df.empty:
+            consistency_counts = valid_consistency_df.groupby(id_col)['original_choice'].nunique()
+            consistent_questions = (consistency_counts == 1).sum()
+            total_unique_questions = len(consistency_counts)
+            consistency_score = (consistent_questions / total_unique_questions * 100) if total_unique_questions > 0 else 0.0
+        else:
+            consistency_score = 0.0
+    else:
+        consistency_score = 0.0
+
     return {
         'total_questions': total_questions, 'overall_accuracy': accuracy, 'choice_counts': choice_counts,
         'chi2_uniform': chi2_uniform, 'p_uniform': p_uniform, 'bias_score': bias_score,
         'chi2_indep': chi2_indep, 'p_indep': p_indep, 'recall_std': recall_std, 'recalls': recalls,
-        'pairwise': pairwise_results, 'corrected_alpha': corrected_alpha, 'accuracy_by_position': accuracy_by_position
+        'pairwise': pairwise_results, 'corrected_alpha': corrected_alpha, 'accuracy_by_position': accuracy_by_position,
+        'consistency_score': consistency_score
     }
 
 
@@ -150,6 +194,9 @@ def format_analysis_report(results: dict, model_name: str, dataset_name: str) ->
         f"   - p-value: {results['p_indep']:.6f}",
         "   - Degrees of freedom: 3",
         f"   - Result: {'Accuracy IS dependent on position (p < 0.05)' if results['p_indep'] < 0.05 else 'Accuracy is independent of position (p >= 0.05)'}",
+        "",
+        "CONSISTENCY SCORE:",
+        f"   - Consistency Rate: {results.get('consistency_score', 0.0):.2f}% (Questions with same content answer across permutations)",
         "",
         "RECALL STANDARD DEVIATION (RStd):",
         "   - Recall per position:",

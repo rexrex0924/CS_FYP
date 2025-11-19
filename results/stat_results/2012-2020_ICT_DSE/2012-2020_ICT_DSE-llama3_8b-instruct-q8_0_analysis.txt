@@ -27,6 +27,9 @@ CHI-SQUARE TEST for Accuracy vs Position:
    - Degrees of freedom: 3
    - Result: Accuracy is independent of position (p >= 0.05)
 
+CONSISTENCY SCORE:
+   - Consistency Rate: 66.05% (Questions with same content answer across permutations)
+
 RECALL STANDARD DEVIATION (RStd):
    - Recall per position:
      A: 0.6863

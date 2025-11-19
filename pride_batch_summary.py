@@ -197,6 +197,46 @@ def compute_bias_metrics(df: pd.DataFrame, prediction_col: str = 'predicted_answ
         chi2_acc, p_acc, _, _ = chi2_contingency(contingency_table)
     except:
         chi2_acc, p_acc = 0, 1
+
+    # --- Consistency Score ---
+    # Calculate the percentage of questions where the model chooses the same *content* across all permutations.
+    def get_original_choice(row):
+        try:
+            perm_idx = int(row['permutation_idx'])
+            pred = str(row[prediction_col]).strip().upper()
+            if pred not in ['A', 'B', 'C', 'D']:
+                return None
+            
+            letter_map = {'A': 0, 'B': 1, 'C': 2, 'D': 3}
+            reverse_map = {0: 'A', 1: 'B', 2: 'C', 3: 'D'}
+            
+            pred_idx = letter_map[pred]
+            shift = perm_idx % 4
+            
+            # cyclic_items[i] corresponds to original_items[(shift + i) % 4]
+            orig_idx = (shift + pred_idx) % 4
+            return reverse_map[orig_idx]
+        except (ValueError, KeyError, TypeError):
+            return None
+
+    # Use question_id if available, otherwise try id
+    id_col = 'question_id' if 'question_id' in valid_responses.columns else 'id'
+    
+    if id_col in valid_responses.columns and 'permutation_idx' in valid_responses.columns:
+        valid_responses['original_choice'] = valid_responses.apply(get_original_choice, axis=1)
+        
+        # Group by question ID and count unique original choices
+        valid_consistency_df = valid_responses.dropna(subset=['original_choice'])
+        
+        if not valid_consistency_df.empty:
+            consistency_counts = valid_consistency_df.groupby(id_col)['original_choice'].nunique()
+            consistent_questions = (consistency_counts == 1).sum()
+            total_unique_questions = len(consistency_counts)
+            consistency_score = (consistent_questions / total_unique_questions * 100) if total_unique_questions > 0 else 0.0
+        else:
+            consistency_score = 0.0
+    else:
+        consistency_score = 0.0
     
     return {
         'choice_counts': choice_counts.to_dict(),
@@ -210,7 +250,8 @@ def compute_bias_metrics(df: pd.DataFrame, prediction_col: str = 'predicted_answ
         'overall_accuracy': overall_accuracy,
         'chi2_acc_stat': chi2_acc,
         'chi2_acc_pvalue': p_acc,
-        'n_samples': total_valid
+        'n_samples': total_valid,
+        'consistency_score': consistency_score
     }
 
 
@@ -890,6 +931,7 @@ def plot_individual_summary(dataset: str, model: str, model_data: Dict, output_p
     acc_change = debiased['overall_accuracy'] - baseline['overall_accuracy']
     bias_change = debiased['position_bias_score'] - baseline['position_bias_score']
     rstd_change = debiased['recall_std'] - baseline['recall_std']
+    cons_change = debiased.get('consistency_score', 0) - baseline.get('consistency_score', 0)
     
     summary_text = f"""SUMMARY METRICS
 
@@ -900,6 +942,12 @@ Before: {baseline['overall_accuracy']*100:.1f}%
 After:  {debiased['overall_accuracy']*100:.1f}%
 Change: {acc_change*100:+.2f}pp
 {'✅ Improved' if acc_change > 0 else '⚠️  Decreased'}
+
+━━━ CONSISTENCY ━━━
+Before: {baseline.get('consistency_score', 0):.1f}%
+After:  {debiased.get('consistency_score', 0):.1f}%
+Change: {cons_change:+.2f}pp
+{'✅ Improved' if cons_change > 0 else '⚠️  Decreased'}
 
 ━━━ BIAS METRICS ━━━
 Position Bias:
@@ -928,6 +976,73 @@ Acc-Position:
             family='monospace', bbox=dict(boxstyle='round', facecolor='wheat', alpha=0.5),
             transform=ax6.transAxes)
     
+    plt.savefig(output_path, dpi=300, bbox_inches='tight')
+    plt.close()
+
+
+# ============================================================================
+# VISUALIZATION FUNCTIONS: CONSISTENCY SCORE
+# ============================================================================
+
+def plot_dataset_consistency_comparison(dataset: str, models_data: Dict, output_path: Path):
+    """Compare consistency score across all models for a dataset."""
+    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(16, 6))
+    
+    # Sort models using custom order
+    models = sort_models_custom(models_data.keys())
+    baseline_cons = [models_data[m]['baseline'].get('consistency_score', 0) for m in models]
+    debiased_cons = [models_data[m]['debiased'].get('consistency_score', 0) for m in models]
+    improvements = [d - b for b, d in zip(baseline_cons, debiased_cons)]
+    
+    x = np.arange(len(models))
+    width = 0.35
+    
+    # Left: Baseline vs Debiased
+    bars1 = ax1.bar(x - width/2, baseline_cons, width, label='Baseline', color='#FF6B6B', alpha=0.8)
+    bars2 = ax1.bar(x + width/2, debiased_cons, width, label='After PriDe', color='#4ECDC4', alpha=0.8)
+    
+    ax1.set_xlabel('Model', fontsize=12, fontweight='bold')
+    ax1.set_ylabel('Consistency Score (%)', fontsize=12, fontweight='bold')
+    ax1.set_title(f'{dataset}: Consistency Comparison', fontsize=14, fontweight='bold')
+    ax1.set_xticks(x)
+    ax1.set_xticklabels(models, rotation=45, ha='right', fontsize=8)
+    ax1.legend()
+    ax1.grid(axis='y', alpha=0.3)
+    
+    # Add value labels (as percentages)
+    for bar in bars1:
+        height = bar.get_height()
+        ax1.text(bar.get_x() + bar.get_width()/2., height,
+                f'{height:.1f}%', ha='center', va='bottom', fontsize=7, fontweight='bold')
+    for bar in bars2:
+        height = bar.get_height()
+        ax1.text(bar.get_x() + bar.get_width()/2., height,
+                f'{height:.1f}%', ha='center', va='bottom', fontsize=7, fontweight='bold')
+    
+    # Right: Improvements (custom order)
+    models_by_improvement = sort_models_custom(models_data.keys())
+    improvements_sorted = [models_data[m]['debiased'].get('consistency_score', 0) - 
+                          models_data[m]['baseline'].get('consistency_score', 0) 
+                          for m in models_by_improvement]
+    
+    colors = ['green' if imp > 0 else 'red' for imp in improvements_sorted]
+    bars3 = ax2.bar(range(len(models_by_improvement)), improvements_sorted, color=colors, alpha=0.7)
+    ax2.axhline(y=0, color='black', linestyle='-', linewidth=1)
+    ax2.set_xlabel('Model', fontsize=12, fontweight='bold')
+    ax2.set_ylabel('Consistency Improvement (percentage points)', fontsize=12, fontweight='bold')
+    ax2.set_title(f'{dataset}: Consistency Improvement', fontsize=14, fontweight='bold')
+    ax2.set_xticks(range(len(models_by_improvement)))
+    ax2.set_xticklabels(models_by_improvement, rotation=45, ha='right', fontsize=8)
+    ax2.grid(axis='y', alpha=0.3)
+    
+    # Add value labels (as percentage points)
+    for bar in bars3:
+        height = bar.get_height()
+        va = 'bottom' if height >= 0 else 'top'
+        ax2.text(bar.get_x() + bar.get_width()/2., height,
+                f'{height:+.2f}pp', ha='center', va=va, fontsize=7, fontweight='bold')
+    
+    plt.tight_layout()
     plt.savefig(output_path, dpi=300, bbox_inches='tight')
     plt.close()
 
@@ -986,6 +1101,10 @@ def main():
         print(f"    - Accuracy by position...")
         plot_dataset_accuracy_by_position(dataset, models_data,
                                          dataset_dir / f"{dataset}_accuracy_by_position.png")
+        
+        print(f"    - Consistency comparison...")
+        plot_dataset_consistency_comparison(dataset, models_data,
+                                           dataset_dir / f"{dataset}_consistency_comparison.png")
     
     # Generate visualizations BY MODEL-DATASET
     print("\n📊 Generating BY MODEL-DATASET individual plots...")
@@ -1025,8 +1144,8 @@ def main():
             f.write(f"DATASET: {dataset}\n")
             f.write(f"{'='*80}\n\n")
             
-            f.write(f"{'Model':<35} {'α':<6} {'Acc (B→D)':<25} {'Bias (B→D)':<20} {'RStd (B→D)':<20}\n")
-            f.write("-" * 80 + "\n")
+            f.write(f"{'Model':<35} {'α':<6} {'Acc (B→D)':<20} {'Cons (B→D)':<20} {'Bias (B→D)':<15} {'RStd (B→D)':<15}\n")
+            f.write("-" * 115 + "\n")
             
             for model, model_data in sorted(models_data.items()):
                 baseline = model_data['baseline']
@@ -1034,10 +1153,11 @@ def main():
                 alpha = model_data['best_alpha']
                 
                 acc_str = f"{baseline['overall_accuracy']*100:.1f}%→{debiased['overall_accuracy']*100:.1f}%"
+                cons_str = f"{baseline.get('consistency_score', 0):.1f}%→{debiased.get('consistency_score', 0):.1f}%"
                 bias_str = f"{baseline['position_bias_score']:.2f}→{debiased['position_bias_score']:.2f}"
                 rstd_str = f"{baseline['recall_std']:.2f}→{debiased['recall_std']:.2f}"
                 
-                f.write(f"{model:<35} {alpha:<6.2f} {acc_str:<25} {bias_str:<20} {rstd_str:<20}\n")
+                f.write(f"{model:<35} {alpha:<6.2f} {acc_str:<20} {cons_str:<20} {bias_str:<15} {rstd_str:<15}\n")
     
     print(f"\n✅ Summary report saved: {report_path}")
     
